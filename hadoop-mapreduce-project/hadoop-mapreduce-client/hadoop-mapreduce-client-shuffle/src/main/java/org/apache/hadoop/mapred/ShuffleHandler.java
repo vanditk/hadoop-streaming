@@ -367,7 +367,6 @@ public class ShuffleHandler extends AuxiliaryService {
       SHUFFLE = getShuffle(conf);
       if (conf.getBoolean(MRConfig.SHUFFLE_SSL_ENABLED_KEY,
                           MRConfig.SHUFFLE_SSL_ENABLED_DEFAULT)) {
-        LOG.info("Encrypted shuffle is enabled.");
         sslFactory = new SSLFactory(SSLFactory.Mode.SERVER, conf);
         sslFactory.init();
       }
@@ -509,28 +508,32 @@ public class ShuffleHandler extends AuxiliaryService {
       ch.write(response);
       // TODO refactor the following into the pipeline
       ChannelFuture lastMap = null;
-      for (String mapId : mapIds) {
-        try {
-          lastMap =
-            sendMapOutput(ctx, ch, userRsrc.get(jobId), jobId, mapId, reduceId);
-          if (null == lastMap) {
-            sendError(ctx, NOT_FOUND);
-            return;
-          }
-        } catch (IOException e) {
-          LOG.error("Shuffle error :", e);
-          StringBuffer sb = new StringBuffer(e.getMessage());
-          Throwable t = e;
-          while (t.getCause() != null) {
-            sb.append(t.getCause().getMessage());
-            t = t.getCause();
-          }
-          sendError(ctx,sb.toString() , INTERNAL_SERVER_ERROR);
-          return;
-        }
+      while(ch.isOpen()){
+	    	  
+	      for (String mapId : mapIds) {
+	        try {
+	          lastMap =
+	            sendMapOutput(ctx, ch, userRsrc.get(jobId), jobId, mapId, reduceId);
+	          if (null == lastMap) {
+	            sendError(ctx, NOT_FOUND);
+	            return;
+	          }
+	        } catch (IOException e) {
+	          LOG.error("Shuffle error :", e);
+	          StringBuffer sb = new StringBuffer(e.getMessage());
+	          Throwable t = e;
+	          while (t.getCause() != null) {
+	            sb.append(t.getCause().getMessage());
+	            t = t.getCause();
+	          }
+	          sendError(ctx,sb.toString() , INTERNAL_SERVER_ERROR);
+	          return;
+	        }
+	      }
+	      lastMap.addListener(metrics);
+	      lastMap.addListener(ChannelFutureListener.CLOSE);
       }
-      lastMap.addListener(metrics);
-      lastMap.addListener(ChannelFutureListener.CLOSE);
+      
     }
 
     protected void verifyRequest(String appid, ChannelHandlerContext ctx,
@@ -596,10 +599,31 @@ public class ShuffleHandler extends AuxiliaryService {
       // Map-output file
       Path mapOutputFileName = lDirAlloc.getLocalPathToRead(
           base + "/file.out", conf);
+      
+      //Pratik was here ! ;)
+      File testFile = null;
+      try{    	  
+	      testFile = new File(mapOutputFileName.toString());
+      }catch(Exception ex){  }
+      int counter = 0;
+      while(testFile==null || !testFile.exists()){
+    	  try {
+    		  counter++;
+			Thread.sleep(100);
+			if(counter>10){
+				LOG.info("waited too long to send spill file of mapid"+mapId);
+				return null;
+			}
+		} catch (InterruptedException e) {	}
+      }
+      //pratik done
+      
       if (LOG.isDebugEnabled()) {
         LOG.debug("DEBUG1 " + base + " : " + mapOutputFileName + " : "
             + indexFileName);
       }
+      LOG.info("DEBUG1 " + base + " : " + mapOutputFileName + " : "
+              + indexFileName);
       final IndexRecord info = 
         indexCache.getIndexInformation(mapId, reduce, indexFileName, user);
       final ShuffleHeader header =
@@ -607,7 +631,8 @@ public class ShuffleHandler extends AuxiliaryService {
       final DataOutputBuffer dob = new DataOutputBuffer();
       header.write(dob);
       ch.write(wrappedBuffer(dob.getData(), 0, dob.getLength()));
-      final File spillfile = new File(mapOutputFileName.toString());
+//      final File spillfile = new File(mapOutputFileName.toString());
+      final File spillfile = testFile;
       RandomAccessFile spill;
       try {
         spill = SecureIOUtils.openForRandomRead(spillfile, "r", user, null);
@@ -628,6 +653,10 @@ public class ShuffleHandler extends AuxiliaryService {
           public void operationComplete(ChannelFuture future) {
             if (future.isSuccess()) {
               partition.transferSuccessful();
+              //pratik was here too
+              boolean result =  spillfile.delete();
+              LOG.info(spillfile + " deleted = " + result);
+              //pratik done
             }
             partition.releaseExternalResources();
           }
@@ -639,6 +668,16 @@ public class ShuffleHandler extends AuxiliaryService {
             manageOsCache, readaheadLength, readaheadPool,
             spillfile.getAbsolutePath());
         writeFuture = ch.write(chunk);
+        //pratik code:
+        writeFuture.addListener(new ChannelFutureListener() {
+			
+			@Override
+			public void operationComplete(ChannelFuture future) throws Exception {
+				// TODO Auto-generated method stub
+				boolean result =  spillfile.delete();
+	              LOG.info(spillfile + " deleted(FadvisedChunkedFile) = " + result);
+			}
+		});
       }
       metrics.shuffleConnections.incr();
       metrics.shuffleOutputBytes.incr(info.partLength); // optimistic

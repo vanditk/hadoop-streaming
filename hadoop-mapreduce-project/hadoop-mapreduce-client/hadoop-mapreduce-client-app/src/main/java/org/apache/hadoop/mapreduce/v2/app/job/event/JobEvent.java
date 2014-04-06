@@ -18,14 +18,19 @@
 
 package org.apache.hadoop.mapreduce.v2.app.job.event;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+
 import org.apache.hadoop.yarn.event.AbstractEvent;
+import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.v2.api.records.JobId;
 
 /**
  * This class encapsulates job related events.
  *
  */
-public class JobEvent extends AbstractEvent<JobEventType> {
+public class JobEvent extends AbstractEvent<JobEventType> implements Writable {
 
   private JobId jobID;
 
@@ -37,5 +42,17 @@ public class JobEvent extends AbstractEvent<JobEventType> {
   public JobId getJobId() {
     return jobID;
   }
+
+public void write(DataOutput out) throws IOException {
+	// TODO Auto-generated method stub
+	System.out.println("Vandit. JobEvent. write called");
+	
+}
+
+public void readFields(DataInput in) throws IOException {
+	// TODO Auto-generated method stub
+	System.out.println("Vandit. JobEvent. readFields called");
+	
+}
 
 }

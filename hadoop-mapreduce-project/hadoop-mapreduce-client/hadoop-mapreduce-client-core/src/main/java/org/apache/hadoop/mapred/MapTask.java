@@ -672,7 +672,7 @@ public class MapTask extends Task {
                        TaskUmbilicalProtocol umbilical,
                        TaskReporter reporter
                        ) throws IOException, ClassNotFoundException {
-      collector = createSortingCollector(job, reporter);
+      collector = createSortingCollector(job, reporter); //pratik: MapOutputBuffer object  MapOutputCollector object with internal context initialized
       partitions = jobContext.getNumReduceTasks();
       if (partitions > 1) {
         partitioner = (org.apache.hadoop.mapreduce.Partitioner<K,V>)
@@ -944,7 +944,7 @@ public class MapTask extends Task {
       //sanity checks
       final float spillper =
         job.getFloat(JobContext.MAP_SORT_SPILL_PERCENT, (float)0.8);
-      final int sortmb = job.getInt(JobContext.IO_SORT_MB, 100);
+      final int sortmb = job.getInt(JobContext.IO_SORT_MB, 1);//pratik made this 1 mb from 100
       indexCacheMemoryLimit = job.getInt(JobContext.INDEX_CACHE_MEMORY_LIMIT,
                                          INDEX_CACHE_MEMORY_LIMIT_DEFAULT);
       if (spillper > (float)1.0 || spillper <= (float)0.0) {
@@ -1548,7 +1548,8 @@ public class MapTask extends Task {
                      kvmeta.capacity()) + 1) + "/" + maxRec);
       spillReady.signal();
     }
-
+    Path tmpFolderSpillFilePath = null;
+    boolean isFirstTime = true;
     private void sortAndSpill() throws IOException, ClassNotFoundException,
                                        InterruptedException {
       //approximate the length of the output file to be the length of the
@@ -1580,6 +1581,9 @@ public class MapTask extends Task {
             long segmentStart = out.getPos();
             writer = new Writer<K, V>(job, out, keyClass, valClass, codec,
                                       spilledRecordsCounter);
+            //TODO: pratik: create connection
+            //connection.connect();
+            
             if (combinerRunner == null) {
               // spill directly
               DataInputBuffer key = new DataInputBuffer();
@@ -1591,9 +1595,15 @@ public class MapTask extends Task {
                 key.reset(kvbuffer, keystart, valstart - keystart);
                 getVBytesForOffset(kvoff, value);
                 writer.append(key, value);
+                //TODO: pratik: write to connection
+                //connection.write(key, value);
+                
                 ++spindex;
               }
             } else {
+            	//TODO: pratik: no combiner for me! throw exception here.
+            	
+            	
               int spstart = spindex;
               while (spindex < mend &&
                   kvmeta.get(offsetFor(spindex % maxRec)
@@ -1637,9 +1647,32 @@ public class MapTask extends Task {
             spillRec.size() * MAP_OUTPUT_INDEX_RECORD_LENGTH;
         }
         LOG.info("Finished spill " + numSpills);
+        //modified by pratik: can i now write to reducer?
+        
+        if(!isFirstTime){
+        	RawLocalFileSystem rfs = (RawLocalFileSystem)this.rfs;
+        	File spillFile=null;
+        	try{
+        		spillFile = rfs.pathToFile(tmpFolderSpillFilePath);        		
+        	}catch(Exception ex){  	}
+        	while(spillFile!=null && spillFile.exists()){
+        		Thread.sleep(100); //100 millis
+        	}        	
+        }
+        isFirstTime=false;
+        tmpFolderSpillFilePath = mapOutputFile.getOutputFileForWriteInVolume(filename);
+        sameVolRename(filename,tmpFolderSpillFilePath);
+        LOG.info("written file : " + tmpFolderSpillFilePath.getName());
+        if (indexCacheList.size() == 0) {
+        	sameVolRename(mapOutputFile.getSpillIndexFile(numSpills), mapOutputFile.getOutputIndexFileForWriteInVolume(filename));
+        } else {
+        	indexCacheList.get(numSpills).writeToFile(mapOutputFile.getOutputIndexFileForWriteInVolume(filename), job);
+        }
+        
         ++numSpills;
       } finally {
         if (out != null) out.close();
+        
       }
     }
 
@@ -1780,12 +1813,11 @@ public class MapTask extends Task {
       final Path[] filename = new Path[numSpills];
       final TaskAttemptID mapId = getTaskID();
 
-      for(int i = 0; i < numSpills; i++) {
-        filename[i] = mapOutputFile.getSpillFile(i);
-        finalOutFileSize += rfs.getFileStatus(filename[i]).getLen();
-      }
+      
+      //few changes to the code made by pratik. for loop pushed inside the following if and below
       if (numSpills == 1) { //the spill is the final output
-        sameVolRename(filename[0],
+/*Pratik moved this part of the code to the end of sortAndSpill()
+ *         sameVolRename(filename[0],
             mapOutputFile.getOutputFileForWriteInVolume(filename[0]));
         if (indexCacheList.size() == 0) {
           sameVolRename(mapOutputFile.getSpillIndexFile(0),
@@ -1794,10 +1826,14 @@ public class MapTask extends Task {
           indexCacheList.get(0).writeToFile(
             mapOutputFile.getOutputIndexFileForWriteInVolume(filename[0]), job);
         }
-        sortPhase.complete();
+ */       sortPhase.complete();
         return;
       }
 
+      for(int i = 0; i < numSpills; i++) {
+    	  filename[i] = mapOutputFile.getSpillFile(i);
+    	  finalOutFileSize += rfs.getFileStatus(filename[i]).getLen();
+      }
       // read in paged indices
       for (int i = indexCacheList.size(); i < numSpills; ++i) {
         Path indexFileName = mapOutputFile.getSpillIndexFile(i);

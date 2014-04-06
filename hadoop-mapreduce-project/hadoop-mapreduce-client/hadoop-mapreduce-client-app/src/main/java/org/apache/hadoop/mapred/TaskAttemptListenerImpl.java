@@ -30,6 +30,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
+import org.apache.hadoop.io.UTF8;
 import org.apache.hadoop.ipc.ProtocolSignature;
 import org.apache.hadoop.ipc.RPC;
 import org.apache.hadoop.ipc.Server;
@@ -299,6 +300,24 @@ public class TaskAttemptListenerImpl extends CompositeService
     // TODO: This isn't really used in any MR code. Ask for removal.    
   }
 
+  
+  @Override
+  public TaskStartedEventContent[] getMapStartedEvents(TaskAttemptID taskAttemptID)
+  {
+	  org.apache.hadoop.mapreduce.v2.api.records.TaskAttemptId attemptID =
+		      TypeConverter.toYarn(taskAttemptID);
+	  /*Object[] events =
+		        context.getJob(attemptID.getTaskId().getJobId()).getMapAttemptStartedEvents();
+		        
+		        */
+	  TaskStartedEventContent[] events = context.getJob(attemptID.getTaskId().getJobId()).getMapAttemptStartedEventHosts();
+	  /*for(TaskStartedEventContent eventTemp : events){
+		  LOG.info("vandit. getMapStartedEvents. Umbilical. Received event: "+eventTemp);
+	  }*/
+	  return events;
+  }
+		  
+  
   @Override
   public MapTaskCompletionEventsUpdate getMapCompletionEvents(
       JobID jobIdentifier, int startIndex, int maxEvents,

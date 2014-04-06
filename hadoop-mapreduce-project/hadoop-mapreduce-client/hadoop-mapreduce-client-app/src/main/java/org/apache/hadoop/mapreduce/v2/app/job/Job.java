@@ -24,7 +24,9 @@ import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.UTF8;
 import org.apache.hadoop.mapred.TaskCompletionEvent;
+import org.apache.hadoop.mapred.TaskStartedEventContent;
 import org.apache.hadoop.mapreduce.Counters;
 import org.apache.hadoop.mapreduce.JobACL;
 import org.apache.hadoop.mapreduce.v2.api.records.AMInfo;
@@ -34,6 +36,7 @@ import org.apache.hadoop.mapreduce.v2.api.records.JobState;
 import org.apache.hadoop.mapreduce.v2.api.records.TaskAttemptCompletionEvent;
 import org.apache.hadoop.mapreduce.v2.api.records.TaskId;
 import org.apache.hadoop.mapreduce.v2.api.records.TaskType;
+import org.apache.hadoop.mapreduce.v2.app.job.event.JobCounterUpdateEvent;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.authorize.AccessControlList;
 
@@ -92,6 +95,9 @@ public interface Job {
   TaskCompletionEvent[]
       getMapAttemptCompletionEvents(int startIndex, int maxEvents);
 
+  // vandit.
+  public JobCounterUpdateEvent[] getMapAttemptStartedEvents();
+  public TaskStartedEventContent[] getMapAttemptStartedEventHosts();
   /**
    * @return information for MR AppMasters (previously failed and current)
    */

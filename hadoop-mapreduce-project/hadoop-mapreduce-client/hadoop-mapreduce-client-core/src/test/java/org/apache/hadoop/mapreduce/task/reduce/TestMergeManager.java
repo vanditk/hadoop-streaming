@@ -40,6 +40,7 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.MROutputFiles;
 import org.apache.hadoop.mapred.MapOutputFile;
+import org.apache.hadoop.mapred.RawKeyValueIterator;
 import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.mapreduce.task.reduce.MergeManagerImpl.CompressAwarePath;
 import org.junit.Assert;
@@ -174,7 +175,7 @@ public class TestMergeManager {
     }
 
     @Override
-    public void merge(List<InMemoryMapOutput<Text, Text>> inputs)
+    public RawKeyValueIterator merge(List<InMemoryMapOutput<Text, Text>> inputs)
         throws IOException {
       synchronized (this) {
         numMerges.incrementAndGet();
@@ -189,6 +190,7 @@ public class TestMergeManager {
       } catch (InterruptedException e) {
       } catch (BrokenBarrierException e) {
       }
+      return null;//pratik changed this
     }
   }
 

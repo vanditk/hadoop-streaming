@@ -56,6 +56,7 @@ import org.apache.hadoop.mapred.WrappedProgressSplitsBlock;
 import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.Counters;
 import org.apache.hadoop.mapreduce.JobCounter;
+import org.apache.hadoop.mapreduce.MRConfig;
 import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
@@ -1362,10 +1363,27 @@ public abstract class TaskAttemptImpl implements
   private void sendLaunchedEvents() {
     JobCounterUpdateEvent jce = new JobCounterUpdateEvent(attemptId.getTaskId()
         .getJobId());
+    boolean encryptedShuffle = conf.getBoolean(MRConfig.SHUFFLE_SSL_ENABLED_KEY,
+            MRConfig.SHUFFLE_SSL_ENABLED_DEFAULT);
+    String scheme = (encryptedShuffle) ? "https://" : "http://";
+    String taskTrackerHttp = StringInterner.weakIntern(scheme+ getNodeHttpAddress().split(":")[0] + ":"+getShufflePort());
+    
+    jce.setTaskTrackerHttp(taskTrackerHttp);
+    jce.setAttemptId(attemptId);
     jce.addCounterUpdate(attemptId.getTaskId().getTaskType() == TaskType.MAP ?
         JobCounter.TOTAL_LAUNCHED_MAPS : JobCounter.TOTAL_LAUNCHED_REDUCES, 1);
     eventHandler.handle(jce);
-
+	if(attemptId.getTaskId().getTaskType() == TaskType.MAP){
+		LOG.info("vandit. Mapper. taskTrackerHttp: "+taskTrackerHttp);
+    }
+	else{
+		LOG.info("vandit. Reducer. taskTrackerHttp: "+taskTrackerHttp);
+    }
+    // new job event for map starting.
+    /*JobAddStartedMapAttemptEvent mapStartEvent = new JobAddStartedMapAttemptEvent(attemptId);
+    eventHandler.handle(mapStartEvent);
+    */
+    
     LOG.info("TaskAttempt: [" + attemptId
         + "] using containerId: [" + container.getId() + " on NM: ["
         + StringInterner.weakIntern(container.getNodeId().toString()) + "]");
@@ -1634,6 +1652,7 @@ public abstract class TaskAttemptImpl implements
       taskAttempt.eventHandler.handle(new TaskTAttemptEvent(
           taskAttempt.attemptId, 
          TaskEventType.T_ATTEMPT_LAUNCHED));
+      LOG.info("vandit. LaunchedContainerTransition.transition"+taskAttempt.eventHandler);
     }
   }
    

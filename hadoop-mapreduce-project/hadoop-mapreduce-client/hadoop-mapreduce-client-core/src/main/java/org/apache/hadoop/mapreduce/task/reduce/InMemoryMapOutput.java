@@ -22,22 +22,17 @@ import java.io.IOException;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-
 import org.apache.hadoop.conf.Configuration;
-
 import org.apache.hadoop.io.BoundedByteArrayOutputStream;
 import org.apache.hadoop.io.IOUtils;
-
 import org.apache.hadoop.io.compress.CodecPool;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.Decompressor;
-
 import org.apache.hadoop.mapred.IFileInputStream;
+import org.apache.hadoop.mapred.RawKeyValueIterator;
 import org.apache.hadoop.mapred.Reporter;
-
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 
 @InterfaceAudience.Private
@@ -124,8 +119,8 @@ class InMemoryMapOutput<K, V> extends MapOutput<K, V> {
   }
 
   @Override
-  public void commit() throws IOException {
-    merger.closeInMemoryFile(this);
+  public RawKeyValueIterator commit() throws IOException {
+    return merger.closeInMemoryFile(this);
   }
   
   @Override

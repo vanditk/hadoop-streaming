@@ -28,6 +28,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.UTF8;
 import org.apache.hadoop.ipc.ProtocolSignature;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.InputSplit;
@@ -159,6 +160,12 @@ public class TestMapProgress extends TestCase {
     public void setCheckpointID(TaskID downgrade, TaskCheckpointID cid) {
       // do nothing
     }
+
+	@Override
+	public TaskStartedEventContent[] getMapStartedEvents(TaskAttemptID taskAttemptID) {
+		// TODO Auto-generated method stub
+		return null;
+	}
   }
   
   private FileSystem fs = null;

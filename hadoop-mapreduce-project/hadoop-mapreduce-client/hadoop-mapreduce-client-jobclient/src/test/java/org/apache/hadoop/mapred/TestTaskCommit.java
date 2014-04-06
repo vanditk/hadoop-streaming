@@ -24,6 +24,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.UTF8;
 import org.apache.hadoop.ipc.ProtocolSignature;
 import org.apache.hadoop.mapred.SortedRanges.Range;
 import org.apache.hadoop.mapreduce.TaskType;
@@ -185,6 +186,12 @@ public class TestTaskCommit extends HadoopTestCase {
     public void setCheckpointID(TaskID downgrade, TaskCheckpointID cid) {
       // ignore
     }
+
+	@Override
+	public TaskStartedEventContent[] getMapStartedEvents(TaskAttemptID taskAttemptID) {
+		// TODO Auto-generated method stub
+		return null;
+	}
   }
   
   /**

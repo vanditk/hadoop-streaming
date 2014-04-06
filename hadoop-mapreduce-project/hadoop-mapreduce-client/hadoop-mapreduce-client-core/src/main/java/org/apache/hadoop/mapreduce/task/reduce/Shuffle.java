@@ -17,22 +17,83 @@
  */
 package org.apache.hadoop.mapreduce.task.reduce;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.net.InetSocketAddress;
+import java.net.URL;
+import java.nio.channels.ClosedChannelException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+
+import javax.crypto.SecretKey;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.LocalDirAllocator;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.DataOutputBuffer;
+import org.apache.hadoop.io.SecureIOUtils;
+import org.apache.hadoop.mapred.IndexRecord;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.JobID;
 import org.apache.hadoop.mapred.MapOutputFile;
 import org.apache.hadoop.mapred.RawKeyValueIterator;
+import org.apache.hadoop.mapred.ReduceTask;
 import org.apache.hadoop.mapred.Reporter;
+import org.apache.hadoop.mapred.ShuffleConsumerPlugin;
 import org.apache.hadoop.mapred.Task;
+import org.apache.hadoop.mapred.Task.TaskReporter;
 import org.apache.hadoop.mapred.TaskStatus;
 import org.apache.hadoop.mapred.TaskUmbilicalProtocol;
-import org.apache.hadoop.mapred.ShuffleConsumerPlugin;
+import org.apache.hadoop.mapreduce.MRConfig;
 import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
+import org.apache.hadoop.mapreduce.security.SecureShuffleUtils;
+import org.apache.hadoop.security.ssl.SSLFactory;
 import org.apache.hadoop.util.Progress;
+import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.hadoop.yarn.util.ConverterUtils;
+import org.jboss.netty.bootstrap.ServerBootstrap;
+import org.jboss.netty.buffer.ChannelBuffers;
+import org.jboss.netty.channel.Channel;
+import org.jboss.netty.channel.ChannelFactory;
+import org.jboss.netty.channel.ChannelFuture;
+import org.jboss.netty.channel.ChannelFutureListener;
+import org.jboss.netty.channel.ChannelHandlerContext;
+import org.jboss.netty.channel.ChannelPipeline;
+import org.jboss.netty.channel.ChannelPipelineFactory;
+import org.jboss.netty.channel.ChannelStateEvent;
+import org.jboss.netty.channel.Channels;
+import org.jboss.netty.channel.ExceptionEvent;
+import org.jboss.netty.channel.MessageEvent;
+import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
+import org.jboss.netty.channel.group.ChannelGroup;
+import org.jboss.netty.channel.group.DefaultChannelGroup;
+import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
+import org.jboss.netty.handler.codec.frame.TooLongFrameException;
+import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
+import org.jboss.netty.handler.codec.http.HttpChunkAggregator;
+import org.jboss.netty.handler.codec.http.HttpRequest;
+import org.jboss.netty.handler.codec.http.HttpRequestDecoder;
+import org.jboss.netty.handler.codec.http.HttpResponse;
+import org.jboss.netty.handler.codec.http.HttpResponseEncoder;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
+import org.jboss.netty.handler.codec.http.QueryStringDecoder;
+import org.jboss.netty.handler.ssl.SslHandler;
+import org.jboss.netty.handler.stream.ChunkedWriteHandler;
+import org.jboss.netty.util.CharsetUtil;
+import org.mortbay.log.Log;
+
+import com.google.common.base.Charsets;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 @InterfaceAudience.LimitedPrivate({"MapReduce"})
 @InterfaceStability.Unstable
@@ -78,8 +139,9 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
         this, copyPhase, context.getShuffledMapsCounter(),
         context.getReduceShuffleBytes(), context.getFailedShuffleCounter());
     merger = createMergeManager(context);
+       
   }
-
+  
   protected MergeManager<K, V> createMergeManager(
       ShuffleConsumerPlugin.Context context) {
     return new MergeManagerImpl<K, V>(reduceId, jobConf, context.getLocalFS(),
@@ -90,10 +152,12 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
         context.getMergedMapOutputsCounter(), this, context.getMergePhase(),
         context.getMapOutputFile());
   }
+  
 
   @Override
   public RawKeyValueIterator run() throws IOException, InterruptedException {
-    // Scale the maximum events we fetch per RPC call to mitigate OOM issues
+	  
+	  // Scale the maximum events we fetch per RPC call to mitigate OOM issues
     // on the ApplicationMaster when a thundering herd of reducers fetch events
     // TODO: This should not be necessary after HADOOP-8942
     int eventsPerReducer = Math.max(MIN_EVENTS_TO_FETCH,
@@ -108,8 +172,10 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
     
     // Start the map-output fetcher threads
     boolean isLocal = localMapFiles != null;
-    final int numFetchers = isLocal ? 1 :
-      jobConf.getInt(MRJobConfig.SHUFFLE_PARALLEL_COPIES, 5);
+//    final int numFetchers = isLocal ? 1 :
+//      jobConf.getInt(MRJobConfig.SHUFFLE_PARALLEL_COPIES, 5);
+    //pratik:
+    final int numFetchers =1;
     Fetcher<K,V>[] fetchers = new Fetcher[numFetchers];
     if (isLocal) {
       fetchers[0] = new LocalFetcher<K, V>(jobConf, reduceId, scheduler,
@@ -124,7 +190,34 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
         fetchers[i].start();
       }
     }
-    
+    //pratik 
+    System.out.println("vandit. starting fetchers.");
+    for (Fetcher<K,V> fetcher : fetchers) {
+    	while(true){
+    		RawKeyValueIterator iter;
+    		Log.info("vandit. Shuffle Waiting for Map output");
+    		synchronized (fetcher){
+    			fetcher.setMapOutput(null);
+    			fetcher.wait();
+    			iter = fetcher.getMapOutput();
+    		}
+    		Log.info("vandit. Shuffle Got Map output");
+    		if(iter == null)
+    			break;
+    		ReduceTask rTask = (ReduceTask)reduceTask;
+    		try {
+				rTask.runIter(jobConf,(TaskReporter)reporter,iter);
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				Log.info("error occured when performing reduce.Ending the Shuffle.");
+				break;
+			}
+    	}
+    	
+      }
+  //pratik : these all need to go for now
+    /*    
     // Wait for shuffle to complete successfully
     while (!scheduler.waitUntilDone(PROGRESS_FREQUENCY)) {
       reporter.progress();
@@ -136,7 +229,6 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
         }
       }
     }
-
     // Stop the event-fetcher thread
     eventFetcher.shutDown();
     
@@ -159,7 +251,7 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
     } catch (Throwable e) {
       throw new ShuffleError("Error while doing final merge " , e);
     }
-
+*/
     // Sanity check
     synchronized (this) {
       if (throwable != null) {
@@ -168,7 +260,8 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
       }
     }
     
-    return kvIter;
+//    return kvIter;
+  return null;  
   }
 
   @Override
@@ -195,3 +288,4 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
     }
   }
 }
+

@@ -18,15 +18,23 @@
 
 package org.apache.hadoop.mapreduce.v2.app.job.event;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.hadoop.io.UTF8;
+import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.v2.api.records.JobId;
+import org.apache.hadoop.mapreduce.v2.api.records.TaskAttemptId;
 
-public class JobCounterUpdateEvent extends JobEvent {
+public class JobCounterUpdateEvent  extends JobEvent{
 
   List<CounterIncrementalUpdate> counterUpdates = null;
   
+  private String taskTrackerHttp;
+  private TaskAttemptId attemptId;
   public JobCounterUpdateEvent(JobId jobId) {
     super(jobId, JobEventType.JOB_COUNTER_UPDATE);
     counterUpdates = new ArrayList<JobCounterUpdateEvent.CounterIncrementalUpdate>();
@@ -40,7 +48,15 @@ public class JobCounterUpdateEvent extends JobEvent {
     return counterUpdates;
   }
   
-  public static class CounterIncrementalUpdate {
+  public String getTaskTrackerHttp() {
+	return taskTrackerHttp;
+  }
+
+  public void setTaskTrackerHttp(String taskTrackerHttp) {
+	this.taskTrackerHttp = taskTrackerHttp;
+  }
+
+public static class CounterIncrementalUpdate {
     Enum<?> key;
     long incrValue;
     
@@ -57,4 +73,25 @@ public class JobCounterUpdateEvent extends JobEvent {
       return incrValue;
     }
   }
+	@Override
+	public void write(DataOutput out) throws IOException {
+		// TODO Auto-generated method stub
+		//UTF8 encodedString = new UTF8(taskTrackerHttp);
+		out.writeUTF(taskTrackerHttp);
+		System.out.println("Vandit. JobCouterUpdateEvent. write");
+	}
+	@Override
+	public void readFields(DataInput in) throws IOException {
+		// TODO Auto-generated method stub
+		taskTrackerHttp = in.readUTF();
+		System.out.println("Vandit. JobCouterUpdateEvent. readFields");
+	}
+
+	public TaskAttemptId getAttemptId() {
+		return attemptId;
+	}
+
+	public void setAttemptId(TaskAttemptId attemptId) {
+		this.attemptId = attemptId;
+	}
 }

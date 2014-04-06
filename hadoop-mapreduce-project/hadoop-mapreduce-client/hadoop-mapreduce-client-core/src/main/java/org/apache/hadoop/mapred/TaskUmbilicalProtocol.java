@@ -22,6 +22,7 @@ import java.io.IOException;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
+import org.apache.hadoop.io.UTF8;
 import org.apache.hadoop.ipc.VersionedProtocol;
 import org.apache.hadoop.mapred.JvmTask;
 import org.apache.hadoop.mapreduce.checkpoint.CheckpointID;
@@ -189,5 +190,7 @@ public interface TaskUmbilicalProtocol extends VersionedProtocol {
    * @param cid
    */
   void setCheckpointID(TaskID tid, TaskCheckpointID cid);
+
+  TaskStartedEventContent[] getMapStartedEvents(TaskAttemptID taskAttemptID);
 
 }

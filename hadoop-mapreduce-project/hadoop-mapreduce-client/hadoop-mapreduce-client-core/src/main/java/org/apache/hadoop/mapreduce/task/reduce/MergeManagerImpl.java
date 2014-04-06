@@ -190,6 +190,9 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
     this.mergeThreshold = (long)(this.memoryLimit * 
                           jobConf.getFloat(MRJobConfig.SHUFFLE_MERGE_PERCENT, 
                                            0.90f));
+    //pratik:
+//    this.mergeThreshold = (long) 0.0f;
+    
     LOG.info("MergerManager: memoryLimit=" + memoryLimit + ", " +
              "maxSingleShuffleLimit=" + maxSingleShuffleLimit + ", " +
              "mergeThreshold=" + mergeThreshold + ", " + 
@@ -301,14 +304,18 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
   synchronized void unreserve(long size) {
     usedMemory -= size;
   }
-
-  public synchronized void closeInMemoryFile(InMemoryMapOutput<K,V> mapOutput) { 
+//pratik changed the return type
+  public synchronized RawKeyValueIterator closeInMemoryFile(InMemoryMapOutput<K,V> mapOutput) { 
     inMemoryMapOutputs.add(mapOutput);
     LOG.info("closeInMemoryFile -> map-output of size: " + mapOutput.getSize()
         + ", inMemoryMapOutputs.size() -> " + inMemoryMapOutputs.size()
         + ", commitMemory -> " + commitMemory + ", usedMemory ->" + usedMemory);
+    //added by pratik
 
-    commitMemory+= mapOutput.getSize();
+    return inMemoryMerger.startMerge(inMemoryMapOutputs);
+    
+    //commented also by pratik
+/*    commitMemory+= mapOutput.getSize();
 
     // Can hang if mergeThreshold is really low.
     if (commitMemory >= mergeThreshold) {
@@ -316,17 +323,18 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
           commitMemory + " > mergeThreshold=" + mergeThreshold + 
           ". Current usedMemory=" + usedMemory);
       inMemoryMapOutputs.addAll(inMemoryMergedMapOutputs);
-      inMemoryMergedMapOutputs.clear();
       inMemoryMerger.startMerge(inMemoryMapOutputs);
+      inMemoryMergedMapOutputs.clear();
       commitMemory = 0L;  // Reset commitMemory.
     }
+    
     
     if (memToMemMerger != null) {
       if (inMemoryMapOutputs.size() >= memToMemMergeOutputsThreshold) { 
         memToMemMerger.startMerge(inMemoryMapOutputs);
       }
     }
-  }
+*/  }
   
   
   public synchronized void closeInMemoryMergedFile(InMemoryMapOutput<K,V> mapOutput) {
@@ -375,9 +383,9 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
     }
 
     @Override
-    public void merge(List<InMemoryMapOutput<K, V>> inputs) throws IOException {
+    public RawKeyValueIterator merge(List<InMemoryMapOutput<K, V>> inputs) throws IOException {
       if (inputs == null || inputs.size() == 0) {
-        return;
+        return null;
       }
 
       TaskAttemptID dummyMapId = inputs.get(0).getMapId(); 
@@ -412,6 +420,7 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
 
       // Note the output of the merge
       closeInMemoryMergedFile(mergedMapOutputs);
+      return null; //pratik : this is wrong but never to be used
     }
   }
   
@@ -423,11 +432,11 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
       ("InMemoryMerger - Thread to merge in-memory shuffled map-outputs");
       setDaemon(true);
     }
-    
+    //pratik changed return type from void
     @Override
-    public void merge(List<InMemoryMapOutput<K,V>> inputs) throws IOException {
+    public RawKeyValueIterator merge(List<InMemoryMapOutput<K,V>> inputs) throws IOException {
       if (inputs == null || inputs.size() == 0) {
-        return;
+        return null;
       }
       
       //name this output file same as the name of the first file that is 
@@ -471,13 +480,13 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
                              new Path(reduceId.toString()),
                              (RawComparator<K>)jobConf.getOutputKeyComparator(),
                              reporter, spilledRecordsCounter, null, null);
-        
-        if (null == combinerClass) {
+        //Pratik: experimenting why no data in riter?
+ /*       if (null == combinerClass) {
           Merger.writeFile(rIter, writer, reporter, jobConf);
         } else {
           combineCollector.setWriter(writer);
           combineAndSpill(rIter, reduceCombineInputCounter);
-        }
+        }*/
         writer.close();
         compressAwarePath = new CompressAwarePath(outputPath,
             writer.getRawLength(), writer.getCompressedLength());
@@ -487,15 +496,16 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
             " files in-memory complete." +
             " Local file is " + outputPath + " of size " + 
             localFS.getFileStatus(outputPath).getLen());
+        return rIter;
       } catch (IOException e) { 
         //make sure that we delete the ondisk file that we created 
         //earlier when we invoked cloneFileAttributes
         localFS.delete(outputPath, true);
         throw e;
       }
-
+//commented by pratik
       // Note the output of the merge
-      closeOnDiskFile(compressAwarePath);
+//      closeOnDiskFile(compressAwarePath);
     }
 
   }
@@ -507,13 +517,13 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
       setName("OnDiskMerger - Thread to merge on-disk map-outputs");
       setDaemon(true);
     }
-    
+    //pratik changed return type from void
     @Override
-    public void merge(List<CompressAwarePath> inputs) throws IOException {
+    public RawKeyValueIterator merge(List<CompressAwarePath> inputs) throws IOException {
       // sanity check
       if (inputs == null || inputs.isEmpty()) {
         LOG.info("No ondisk files to merge...");
-        return;
+        return null;
       }
       
       long approxOutputSize = 0;
@@ -558,19 +568,21 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
         writer.close();
         compressAwarePath = new CompressAwarePath(outputPath,
             writer.getRawLength(), writer.getCompressedLength());
+        LOG.info(reduceId +
+        		" Finished merging " + inputs.size() + 
+        		" map output files on disk of total-size " + 
+        		approxOutputSize + "." + 
+        		" Local output file is " + outputPath + " of size " +
+        		localFS.getFileStatus(outputPath).getLen());
+        //pratik
+        return iter;
       } catch (IOException e) {
         localFS.delete(outputPath, true);
         throw e;
       }
+//pratik commented this
+//      closeOnDiskFile(compressAwarePath);
 
-      closeOnDiskFile(compressAwarePath);
-
-      LOG.info(reduceId +
-          " Finished merging " + inputs.size() + 
-          " map output files on disk of total-size " + 
-          approxOutputSize + "." + 
-          " Local output file is " + outputPath + " of size " +
-          localFS.getFileStatus(outputPath).getLen());
     }
   }
   

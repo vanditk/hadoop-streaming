@@ -18,7 +18,6 @@
 package org.apache.hadoop.mapreduce.task.reduce;
 
 import java.io.IOException;
-
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
@@ -35,6 +34,7 @@ import java.util.concurrent.DelayQueue;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.avro.util.Utf8;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
@@ -43,6 +43,7 @@ import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.TaskCompletionEvent;
+import org.apache.hadoop.mapred.TaskStartedEventContent;
 import org.apache.hadoop.mapred.TaskStatus;
 import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
@@ -135,6 +136,18 @@ public class ShuffleSchedulerImpl<K,V> implements ShuffleScheduler<K,V> {
   }
 
   @Override
+  public void resolve(TaskStartedEventContent tsec) {
+    
+	  URI u = getBaseURI(reduceId, tsec.getHostUrl());
+	  System.out.println("vandit. ShuffleScheduler.resolve. URI: "+u);
+      addKnownMapOutput(u.getHost() + ":" + u.getPort(),
+          u.toString(),
+          tsec.getTaskAttemptId());
+     
+  }
+
+  
+  @Override
   public void resolve(TaskCompletionEvent event) {
     switch (event.getTaskStatus()) {
     case SUCCEEDED:
@@ -179,17 +192,19 @@ public class ShuffleSchedulerImpl<K,V> implements ShuffleScheduler<K,V> {
                                          long millis,
                                          MapOutput<K,V> output
                                          ) throws IOException {
-    failureCounts.remove(mapId);
-    hostFailures.remove(host.getHostName());
-    int mapIndex = mapId.getTaskID().getId();
+	  //pratik:now need the notifyAll() here.
+	  //all commented statements due to pratik
+//    failureCounts.remove(mapId);
+//    hostFailures.remove(host.getHostName());
+//    int mapIndex = mapId.getTaskID().getId();
 
-    if (!finishedMaps[mapIndex]) {
-      output.commit();
-      finishedMaps[mapIndex] = true;
-      shuffledMapsCounter.increment(1);
-      if (--remainingMaps == 0) {
+//    if (!finishedMaps[mapIndex]) {
+//      output.commit();
+//      finishedMaps[mapIndex] = true;
+//      shuffledMapsCounter.increment(1);
+//      if (--remainingMaps == 0) {
         notifyAll();
-      }
+//      }
 
       // update the status
       totalBytesShuffledTillNow += bytes;
@@ -197,7 +212,7 @@ public class ShuffleSchedulerImpl<K,V> implements ShuffleScheduler<K,V> {
       reduceShuffleBytes.increment(bytes);
       lastProgressTime = System.currentTimeMillis();
       LOG.debug("map " + mapId + " done " + status.getStateString());
-    }
+//    }
   }
 
   private void updateStatus() {
@@ -342,9 +357,9 @@ public class ShuffleSchedulerImpl<K,V> implements ShuffleScheduler<K,V> {
     if (host == null) {
       host = new MapHost(hostName, hostUrl);
       mapLocations.put(hostName, host);
+      System.out.println("vandit. Adding new MapHost: "+host);
     }
     host.addKnownMap(mapId);
-
     // Mark the host as pending
     if (host.getState() == State.PENDING) {
       pendingHosts.add(host);
@@ -439,11 +454,14 @@ public class ShuffleSchedulerImpl<K,V> implements ShuffleScheduler<K,V> {
   @Override
   public synchronized boolean waitUntilDone(int millis
                                             ) throws InterruptedException {
-    if (remainingMaps > 0) {
+//pratik: dont check for remainingMaps here: we also comment the corresponding handling in 
+	  // copysucceeded() method
+	  wait();
+/*    if (remainingMaps > 0) {
       wait(millis);
       return remainingMaps == 0;
     }
-    return true;
+*/    return true;
   }
 
   /**

@@ -19,15 +19,13 @@ package org.apache.hadoop.mapreduce.task.reduce;
 
 import java.io.InputStream;
 import java.io.IOException;
-
 import java.util.Comparator;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
-
+import org.apache.hadoop.mapred.RawKeyValueIterator;
 import org.apache.hadoop.mapred.Reporter;
-
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 
 @InterfaceAudience.LimitedPrivate({"MapReduce"})
@@ -77,8 +75,8 @@ public abstract class MapOutput<K, V> {
                                long decompressedLength,
                                ShuffleClientMetrics metrics,
                                Reporter reporter) throws IOException;
-
-  public abstract void commit() throws IOException;
+//pratik changed from void
+  public abstract RawKeyValueIterator commit() throws IOException;
   
   public abstract void abort();
 

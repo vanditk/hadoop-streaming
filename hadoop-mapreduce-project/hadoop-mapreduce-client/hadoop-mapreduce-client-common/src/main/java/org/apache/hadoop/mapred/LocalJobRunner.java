@@ -44,6 +44,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.UTF8;
 import org.apache.hadoop.ipc.ProtocolSignature;
 import org.apache.hadoop.mapreduce.Cluster.JobTrackerStatus;
 import org.apache.hadoop.mapreduce.ClusterMetrics;
@@ -728,6 +729,12 @@ public class LocalJobRunner implements ClientProtocol {
     public void setCheckpointID(TaskID downgrade, TaskCheckpointID cid) {
       // ignore
     }
+
+	@Override
+	public TaskStartedEventContent[] getMapStartedEvents(TaskAttemptID taskAttemptID) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
   }
 

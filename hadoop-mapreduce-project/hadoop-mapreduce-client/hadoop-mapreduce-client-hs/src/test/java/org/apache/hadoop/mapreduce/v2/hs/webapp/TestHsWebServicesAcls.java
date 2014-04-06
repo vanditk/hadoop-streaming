@@ -40,6 +40,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.JobACLsManager;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.TaskCompletionEvent;
+import org.apache.hadoop.mapred.TaskStartedEventContent;
 import org.apache.hadoop.mapreduce.Counters;
 import org.apache.hadoop.mapreduce.JobACL;
 import org.apache.hadoop.mapreduce.MRConfig;
@@ -52,6 +53,7 @@ import org.apache.hadoop.mapreduce.v2.api.records.TaskId;
 import org.apache.hadoop.mapreduce.v2.api.records.TaskType;
 import org.apache.hadoop.mapreduce.v2.app.job.Job;
 import org.apache.hadoop.mapreduce.v2.app.job.Task;
+import org.apache.hadoop.mapreduce.v2.app.job.event.JobCounterUpdateEvent;
 import org.apache.hadoop.mapreduce.v2.hs.HistoryContext;
 import org.apache.hadoop.mapreduce.v2.hs.MockHistoryContext;
 import org.apache.hadoop.security.GroupMappingServiceProvider;
@@ -419,5 +421,16 @@ public class TestHsWebServicesAcls {
     @Override
     public void setQueueName(String queueName) {
     }
+
+	@Override
+	public JobCounterUpdateEvent[] getMapAttemptStartedEvents() {
+		return null;
+	}
+
+	@Override
+	public TaskStartedEventContent[] getMapAttemptStartedEventHosts() {
+		// TODO Auto-generated method stub
+		return null;
+	}
   }
 }

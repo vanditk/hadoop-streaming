@@ -25,7 +25,9 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.UTF8;
 import org.apache.hadoop.mapred.TaskCompletionEvent;
+import org.apache.hadoop.mapred.TaskStartedEventContent;
 import org.apache.hadoop.mapreduce.Counters;
 import org.apache.hadoop.mapreduce.JobACL;
 import org.apache.hadoop.mapreduce.v2.api.records.AMInfo;
@@ -36,6 +38,7 @@ import org.apache.hadoop.mapreduce.v2.api.records.TaskAttemptCompletionEvent;
 import org.apache.hadoop.mapreduce.v2.api.records.TaskId;
 import org.apache.hadoop.mapreduce.v2.api.records.TaskType;
 import org.apache.hadoop.mapreduce.v2.app.job.Task;
+import org.apache.hadoop.mapreduce.v2.app.job.event.JobCounterUpdateEvent;
 import org.apache.hadoop.mapreduce.v2.jobhistory.JobIndexInfo;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.authorize.AccessControlList;
@@ -195,5 +198,17 @@ public class PartialJob implements org.apache.hadoop.mapreduce.v2.app.job.Job {
   public void setQueueName(String queueName) {
     throw new UnsupportedOperationException("Can't set job's queue name in history");
   }
+
+@Override
+public JobCounterUpdateEvent[] getMapAttemptStartedEvents() {
+	// TODO Auto-generated method stub
+	return null;
+}
+
+@Override
+public TaskStartedEventContent[] getMapAttemptStartedEventHosts() {
+	// TODO Auto-generated method stub
+	return null;
+}
 
 }

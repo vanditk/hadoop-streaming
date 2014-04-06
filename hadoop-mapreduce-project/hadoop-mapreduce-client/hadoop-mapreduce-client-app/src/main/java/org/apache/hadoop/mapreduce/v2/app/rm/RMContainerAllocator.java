@@ -138,7 +138,7 @@ public class RMContainerAllocator extends RMContainerRequestor
   private int rackLocalAssigned = 0;
   private int lastCompletedTasks = 0;
   
-  private boolean recalculateReduceSchedule = false;
+  private boolean recalculateReduceSchedule = true; // pratik. 
   private int mapResourceReqt;//memory
   private int reduceResourceReqt;//memory
   
@@ -243,7 +243,7 @@ public class RMContainerAllocator extends RMContainerRequestor
           assignedRequests.maps.size(), assignedRequests.reduces.size(),
           mapResourceReqt, reduceResourceReqt,
           pendingReduces.size(), 
-          maxReduceRampupLimit, reduceSlowStart);
+          maxReduceRampupLimit, 0.0f); // pratik
       recalculateReduceSchedule = false;
     }
 

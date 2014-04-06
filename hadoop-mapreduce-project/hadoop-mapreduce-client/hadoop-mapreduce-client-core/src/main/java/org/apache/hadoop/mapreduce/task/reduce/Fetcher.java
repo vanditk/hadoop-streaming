@@ -38,6 +38,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.RawKeyValueIterator;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapreduce.MRConfig;
 import org.apache.hadoop.mapreduce.MRJobConfig;
@@ -90,6 +91,9 @@ class Fetcher<K,V> extends Thread {
   private static boolean sslShuffle;
   private static SSLFactory sslFactory;
 
+  //pratik:
+  private RawKeyValueIterator rIter = null;
+  
   public Fetcher(JobConf job, TaskAttemptID reduceId, 
                  ShuffleSchedulerImpl<K,V> scheduler, MergeManager<K,V> merger,
                  Reporter reporter, ShuffleClientMetrics metrics,
@@ -151,7 +155,8 @@ class Fetcher<K,V> extends Thread {
   
   public void run() {
     try {
-      while (!stopped && !Thread.currentThread().isInterrupted()) {
+    	//pratik : 1 mapper - 1 reducer case need not have this while loop
+//      while (!stopped && !Thread.currentThread().isInterrupted()) {
         MapHost host = null;
         try {
           // If merge is on, block
@@ -169,11 +174,14 @@ class Fetcher<K,V> extends Thread {
             metrics.threadFree();            
           }
         }
-      }
+ //     }
     } catch (InterruptedException ie) {
       return;
     } catch (Throwable t) {
       exceptionReporter.reportException(t);
+    }
+    finally{
+    	LOG.info("vandit. Fetcher run finished.");
     }
   }
 
@@ -390,8 +398,15 @@ class Fetcher<K,V> extends Thread {
       } catch (IllegalArgumentException e) {
         badIdErrs.increment(1);
         LOG.warn("Invalid map id ", e);
+        while(this.rIter!=null){}
+        synchronized (this) {
+        	notify();
+		}
+        // Pratik bhai..idhar dekho bhai.. ek hi mapper hai.
+        remaining.clear();
         //Don't know which one was bad, so consider all of them as bad
-        return remaining.toArray(new TaskAttemptID[remaining.size()]);
+        //return remaining.toArray(new TaskAttemptID[remaining.size()]);
+        return null;
       }
 
  
@@ -405,7 +420,8 @@ class Fetcher<K,V> extends Thread {
         LOG.debug("header: " + mapId + ", len: " + compressedLength + 
             ", decomp len: " + decompressedLength);
       }
-      
+      LOG.info("header: " + mapId + ", len: " + compressedLength + 
+              ", decomp len: " + decompressedLength);
       // Get the location for the map output - either in-memory or on-disk
       try {
         mapOutput = merger.reserve(mapId, decompressedLength, id);
@@ -437,26 +453,48 @@ class Fetcher<K,V> extends Thread {
         LOG.warn("Failed to shuffle for fetcher#"+id, e);
         throw new IOException(e);
       }
-      
-      // Inform the shuffle scheduler
+      //following added by pratik:
       long endTime = System.currentTimeMillis();
+      // Inform the shuffle scheduler
+      while(this.rIter!=null){}
+      this.rIter = mapOutput.commit();
+      LOG.info("vandit. Fetcher going to notify");
+      synchronized (this){
+    	  notify(); 
+      }
+      
       scheduler.copySucceeded(mapId, host, compressedLength, 
                               endTime - startTime, mapOutput);
       // Note successful shuffle
-      remaining.remove(mapId);
       metrics.successFetch();
+      //following commented by pratik:
+      //remaining.remove(mapId);
       return null;
+      
     } catch (IOException ioe) {
       ioErrs.increment(1);
       if (mapId == null || mapOutput == null) {
         LOG.info("fetcher#" + id + " failed to read map header" + 
                  mapId + " decomp: " + 
                  decompressedLength + ", " + compressedLength, ioe);
-        if(mapId == null) {
+        //pratik: am hacking the error to think that this ends the reducer taking spills... forcefully end the copyFromHost here.
+        remaining.clear();
+        //following will start the waiting shuffle thread and rIter = null will tell shuffle to end 
+        while(this.rIter!=null){}
+        LOG.info("vandit. Fetcher going to notify");
+        
+        this.rIter = null;
+        synchronized (this){
+      	  notify();
+      	
+        }
+        LOG.info("vandit. Exception caught.");
+        return null;
+        /*if(mapId == null) {
           return remaining.toArray(new TaskAttemptID[remaining.size()]);
         } else {
           return new TaskAttemptID[] {mapId};
-        }
+        }*/
       }
       
       LOG.warn("Failed to shuffle output of " + mapId + 
@@ -469,7 +507,12 @@ class Fetcher<K,V> extends Thread {
     }
 
   }
-  
+  public RawKeyValueIterator getMapOutput(){
+	  return rIter;
+  }
+  public void setMapOutput(RawKeyValueIterator riter){
+	   this.rIter = riter;
+  }
   /**
    * Do some basic verification on the input received -- Being defensive
    * @param compressedLength

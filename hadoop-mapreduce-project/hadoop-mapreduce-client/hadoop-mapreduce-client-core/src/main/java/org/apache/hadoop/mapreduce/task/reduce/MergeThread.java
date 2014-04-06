@@ -27,6 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.mapred.RawKeyValueIterator;
 
 abstract class MergeThread<T,K,V> extends Thread {
   
@@ -52,23 +53,38 @@ abstract class MergeThread<T,K,V> extends Thread {
     waitForMerge();
     interrupt();
   }
-
-  public void startMerge(Set<T> inputs) {
+//pratik changed from void
+  public RawKeyValueIterator startMerge(Set<T> inputs) {
     if (!closed) {
-      numPending.incrementAndGet();
+//pratik: commented this
+    	//      numPending.incrementAndGet();
       List<T> toMergeInputs = new ArrayList<T>();
       Iterator<T> iter=inputs.iterator();
       for (int ctr = 0; iter.hasNext() && ctr < mergeFactor; ++ctr) {
         toMergeInputs.add(iter.next());
         iter.remove();
       }
-      LOG.info(getName() + ": Starting merge with " + toMergeInputs.size() + 
+      //added by pratik
+      try {
+          LOG.info(getName() + ": Starting merge with " + toMergeInputs.size() + 
+                  " segments, while ignoring " + inputs.size() + " segments");
+
+		return merge(toMergeInputs);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			LOG.info("error occured while performing merge:"+ e.getMessage());
+			return null; 
+		}
+      /*      LOG.info(getName() + ": Starting merge with " + toMergeInputs.size() + 
                " segments, while ignoring " + inputs.size() + " segments");
       synchronized(pendingToBeMerged) {
         pendingToBeMerged.addLast(toMergeInputs);
         pendingToBeMerged.notifyAll();
-      }
+      }*/
     }
+    //pratik added
+    return null;
   }
 
   public synchronized void waitForMerge() throws InterruptedException {
@@ -107,6 +123,6 @@ abstract class MergeThread<T,K,V> extends Thread {
       }
     }
   }
-
-  public abstract void merge(List<T> inputs) throws IOException;
+//pratik changed from void to RawKeyValueIterator
+  public abstract RawKeyValueIterator merge(List<T> inputs) throws IOException;
 }

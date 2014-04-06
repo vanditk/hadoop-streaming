@@ -23,19 +23,15 @@ import java.io.OutputStream;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-
 import org.apache.hadoop.io.IOUtils;
-
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.RawKeyValueIterator;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.MapOutputFile;
-
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.task.reduce.MergeManagerImpl.CompressAwarePath;
 
@@ -127,13 +123,14 @@ class OnDiskMapOutput<K, V> extends MapOutput<K, V> {
     }
     this.compressedSize = compressedLength;
   }
-
+//pratik changed return type
   @Override
-  public void commit() throws IOException {
+  public RawKeyValueIterator commit() throws IOException {
     fs.rename(tmpOutputPath, outputPath);
     CompressAwarePath compressAwarePath = new CompressAwarePath(outputPath,
         getSize(), this.compressedSize);
     merger.closeOnDiskFile(compressAwarePath);
+    return null;//pratik changed this. it is wrong but i dont care
   }
   
   @Override

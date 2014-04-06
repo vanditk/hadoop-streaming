@@ -21,10 +21,13 @@ import java.io.IOException;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.io.UTF8;
 import org.apache.hadoop.mapred.MapTaskCompletionEventsUpdate;
 import org.apache.hadoop.mapred.TaskCompletionEvent;
+import org.apache.hadoop.mapred.TaskStartedEventContent;
 import org.apache.hadoop.mapred.TaskUmbilicalProtocol;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
+
 
 class EventFetcher<K,V> extends Thread {
   private static final long SLEEP_TIME = 1000;
@@ -64,6 +67,8 @@ class EventFetcher<K,V> extends Thread {
       while (!stopped && !Thread.currentThread().isInterrupted()) {
         try {
           int numNewMaps = getMapCompletionEvents();
+          int numNewMapsStarted = getMapStartedEvents();
+          
           failures = 0;
           if (numNewMaps > 0) {
             LOG.info(reduce + ": " + "Got " + numNewMaps + " new map-outputs");
@@ -109,7 +114,22 @@ class EventFetcher<K,V> extends Thread {
    * Queries the {@link TaskTracker} for a set of map-completion events 
    * from a given event ID.
    * @throws IOException
-   */  
+   */ 
+  
+  
+  protected int getMapStartedEvents()
+  {
+	  TaskStartedEventContent[] update =
+	          umbilical.getMapStartedEvents((org.apache.hadoop.mapred.TaskAttemptID)reduce);
+	  
+	  for (TaskStartedEventContent eventContent : update) {
+	        scheduler.resolve(eventContent);
+	  }
+	  System.out.println("Vandit. Got "+update.length+" Map started Events");
+	  return update.length;
+	  
+  }
+  
   protected int getMapCompletionEvents()
       throws IOException, InterruptedException {
     
@@ -123,6 +143,13 @@ class EventFetcher<K,V> extends Thread {
               fromEventIdx,
               maxEventsToFetch,
               (org.apache.hadoop.mapred.TaskAttemptID)reduce);
+      /*MapTaskCompletionEventsUpdate update =
+              umbilical.getMapCompletionEvents(
+                  (org.apache.hadoop.mapred.JobID)reduce.getJobID(),
+                  fromEventIdx,
+                  maxEventsToFetch,
+                  (org.apache.hadoop.mapred.TaskAttemptID)reduce);
+        */  
       events = update.getMapTaskCompletionEvents();
       LOG.debug("Got " + events.length + " map completion events from " +
                fromEventIdx);

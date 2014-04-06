@@ -22,6 +22,8 @@ import java.io.IOException;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.mapred.TaskCompletionEvent;
+import org.apache.hadoop.mapred.TaskStartedEventContent;
+
 
 @InterfaceAudience.Private
 @InterfaceStability.Unstable
@@ -42,6 +44,10 @@ public interface ShuffleScheduler<K,V> {
   public void resolve(TaskCompletionEvent tce)
     throws IOException, InterruptedException;
 
+  
   public void close() throws InterruptedException;
+
+  //added by Vandit.
+  public void resolve(TaskStartedEventContent tsec);
 
 }

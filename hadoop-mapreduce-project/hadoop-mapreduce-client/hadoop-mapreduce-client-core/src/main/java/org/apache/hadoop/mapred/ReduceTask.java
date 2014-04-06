@@ -69,7 +69,7 @@ public class ReduceTask extends Task {
          public Writable newInstance() { return new ReduceTask(); }
        });
   }
-  
+  //pratik
   private static final Log LOG = LogFactory.getLog(ReduceTask.class.getName());
   private int numMaps;
 
@@ -375,28 +375,58 @@ public class ReduceTask extends Task {
 
     rIter = shuffleConsumerPlugin.run();
 
+    LOG.info("vandit. ReduceTask.java ends");
     // free up the data structures
     mapOutputFilesOnDisk.clear();
     
     sortPhase.complete();                         // sort is complete
     setPhase(TaskStatus.Phase.REDUCE); 
     statusUpdate(umbilical);
-    Class keyClass = job.getMapOutputKeyClass();
+/*    Class keyClass = job.getMapOutputKeyClass();
     Class valueClass = job.getMapOutputValueClass();
     RawComparator comparator = job.getOutputValueGroupingComparator();
 
-    if (useNewApi) {
-      runNewReducer(job, umbilical, reporter, rIter, comparator, 
-                    keyClass, valueClass);
-    } else {
-      runOldReducer(job, umbilical, reporter, rIter, comparator, 
-                    keyClass, valueClass);
-    }
+    //pratik put the while loop
+ //   while(true){
+    	try{
+    	if (useNewApi) {
+    		runNewReducer(job, umbilical, reporter, rIter, comparator, 
+    				keyClass, valueClass);
+    	} else {
+    		runOldReducer(job, umbilical, reporter, rIter, comparator, 
+    				keyClass, valueClass);
+    	}    
+    	}catch(Exception e){
+    		LOG.info("error occured while performing reduce on a rIter");
+ //   		break;
+    	}*/
+  //  }
 
     shuffleConsumerPlugin.close();
     done(umbilical, reporter);
   }
-
+  
+//pratik did this
+  public void runIter(JobConf job,TaskReporter reporter,RawKeyValueIterator rIter) throws Exception{
+	    Class keyClass = job.getMapOutputKeyClass();
+	    Class valueClass = job.getMapOutputValueClass();
+	    RawComparator comparator = job.getOutputValueGroupingComparator();
+	    
+	    boolean useNewApi = true; //very bad programming!
+	  try{
+	    	if (useNewApi) {
+	    		runNewReducer(job, umbilical, reporter, rIter, comparator, 
+	    				keyClass, valueClass);
+	    	} else {
+	    		runOldReducer(job, umbilical, reporter, rIter, comparator, 
+	    				keyClass, valueClass);
+	    	}    
+    	}catch(Exception e){
+    		LOG.info("error occured while performing reduce on a rIter"+e);
+    		throw e;
+    	}
+  }
+  
   @SuppressWarnings("unchecked")
   private <INKEY,INVALUE,OUTKEY,OUTVALUE>
   void runOldReducer(JobConf job,
@@ -461,6 +491,7 @@ public class ReduceTask extends Task {
     }
   }
 
+  
   static class OldTrackingRecordWriter<K, V> implements RecordWriter<K, V> {
 
     private final RecordWriter<K, V> real;
