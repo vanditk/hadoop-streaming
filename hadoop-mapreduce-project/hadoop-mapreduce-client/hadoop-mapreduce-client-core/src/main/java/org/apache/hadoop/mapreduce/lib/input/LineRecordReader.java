@@ -145,23 +145,29 @@ public class LineRecordReader extends RecordReader<LongWritable, Text> {
     int newSize = 0;
     // We always read one extra line, which lies outside the upper
     // split limit i.e. (end - 1)
-    while (getFilePosition() <= end || in.needAdditionalRecordAfterSplit()) {
-      newSize = in.readLine(value, maxLineLength,
+    
+    while (in.needAdditionalRecordAfterSplit() || getFilePosition() <= end ) {
+     do {
+    	newSize = in.readLine(value, maxLineLength,
           Math.max(maxBytesToConsume(pos), maxLineLength));
       pos += newSize;
-      if (newSize < maxLineLength) {
+      /*if (newSize < maxLineLength) {
         break;
-      }
-
+      }*/
+      //LOG.info("Navya rocks"+newSize);
       // line too long. try again
-      LOG.info("Skipped line of size " + newSize + " at pos " + 
-               (pos - newSize));
+     /* LOG.info("Skipped line of size " + newSize + " at pos " + 
+               (pos - newSize));*/
+    }while(newSize==0);
+     return true;
     }
+    
     if (newSize == 0) {
       key = null;
       value = null;
       return false;
-    } else {
+    }
+    else {
       return true;
     }
   }

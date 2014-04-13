@@ -398,10 +398,10 @@ class Fetcher<K,V> extends Thread {
       } catch (IllegalArgumentException e) {
         badIdErrs.increment(1);
         LOG.warn("Invalid map id ", e);
-        while(this.rIter!=null){}
+        /*while(this.rIter!=null){}
         synchronized (this) {
         	notify();
-		}
+		}*/
         // Pratik bhai..idhar dekho bhai.. ek hi mapper hai.
         remaining.clear();
         //Don't know which one was bad, so consider all of them as bad
@@ -456,12 +456,12 @@ class Fetcher<K,V> extends Thread {
       //following added by pratik:
       long endTime = System.currentTimeMillis();
       // Inform the shuffle scheduler
-      while(this.rIter!=null){}
+      //while(this.rIter!=null){}
       this.rIter = mapOutput.commit();
       LOG.info("vandit. Fetcher going to notify");
-      synchronized (this){
+      /*synchronized (this){
     	  notify(); 
-      }
+      }*/
       
       scheduler.copySucceeded(mapId, host, compressedLength, 
                               endTime - startTime, mapOutput);
@@ -480,14 +480,14 @@ class Fetcher<K,V> extends Thread {
         //pratik: am hacking the error to think that this ends the reducer taking spills... forcefully end the copyFromHost here.
         remaining.clear();
         //following will start the waiting shuffle thread and rIter = null will tell shuffle to end 
-        while(this.rIter!=null){}
-        LOG.info("vandit. Fetcher going to notify");
+        //while(this.rIter!=null){}
+        LOG.info("vandit. Fetcher going to notify. Inside catch");
         
         this.rIter = null;
-        synchronized (this){
+        /*synchronized (this){
       	  notify();
       	
-        }
+        }*/
         LOG.info("vandit. Exception caught.");
         return null;
         /*if(mapId == null) {

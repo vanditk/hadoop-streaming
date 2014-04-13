@@ -67,4 +67,6 @@ public interface MergeManager<K, V> {
    * @return a key value iterator object.
    */
   public RawKeyValueIterator close() throws Throwable;
+  
+  public RawKeyValueIterator startStreamingMerger();
 }

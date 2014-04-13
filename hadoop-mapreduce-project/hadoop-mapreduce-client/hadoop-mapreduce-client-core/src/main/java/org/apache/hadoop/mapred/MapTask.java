@@ -1657,7 +1657,7 @@ public class MapTask extends Task {
         	}catch(Exception ex){  	}
         	int counter =0;
         	while(spillFile!=null && spillFile.exists()){
-        		if(++counter > 50){
+        		if(++counter > 150){
         			LOG.info("Old spillFile was not read for 5 secs. so shutting down...");
         			throw new InterruptedException("Old spillFile was not read for 5 secs. so shutting down...");
         		}
