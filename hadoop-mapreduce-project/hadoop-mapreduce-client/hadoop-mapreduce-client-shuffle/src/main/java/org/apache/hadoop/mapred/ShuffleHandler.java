@@ -508,12 +508,13 @@ public class ShuffleHandler extends AuxiliaryService {
       ch.write(response);
       // TODO refactor the following into the pipeline
       ChannelFuture lastMap = null;
+      boolean firstTime = true;
       while(ch.isOpen()){
 	    	  
 	      for (String mapId : mapIds) {
 	        try {
 	          lastMap =
-	            sendMapOutput(ctx, ch, userRsrc.get(jobId), jobId, mapId, reduceId);
+	            sendMapOutput(ctx, ch, userRsrc.get(jobId), jobId, mapId, reduceId, firstTime); //last parameter added by pratik
 	          if (null == lastMap) {
 	            sendError(ctx, NOT_FOUND);
 	            return;
@@ -531,7 +532,7 @@ public class ShuffleHandler extends AuxiliaryService {
 	        }
 	      }
 	      lastMap.addListener(metrics);
-	      lastMap.addListener(ChannelFutureListener.CLOSE);
+//	      lastMap.addListener(ChannelFutureListener.CLOSE);
       }
       
     }
@@ -578,7 +579,7 @@ public class ShuffleHandler extends AuxiliaryService {
     }
 
     protected ChannelFuture sendMapOutput(ChannelHandlerContext ctx, Channel ch,
-        String user, String jobId, String mapId, int reduce)
+        String user, String jobId, String mapId, int reduce, boolean firstTime)
         throws IOException {
       // TODO replace w/ rsrc alloc
       // $x/$user/appcache/$appId/output/$mapId
@@ -593,20 +594,11 @@ public class ShuffleHandler extends AuxiliaryService {
       if (LOG.isDebugEnabled()) {
         LOG.debug("DEBUG0 " + base);
       }
-      // Index file
-      Path indexFileName = lDirAlloc.getLocalPathToRead(
-          base + "/file.out.index", conf);
-      // Map-output file
-      Path mapOutputFileName = lDirAlloc.getLocalPathToRead(
-          base + "/file.out", conf);
       
-      //Pratik was here ! ;)
-      File testFile = null;
-      try{    	  
-	      testFile = new File(mapOutputFileName.toString());
-      }catch(Exception ex){  }
+    //Pratik was here ! ;)
       int counter = 0;
-      while(testFile==null || !testFile.exists()){
+      //wait max 1 sec for the file to be available. 
+      while(!lDirAlloc.ifExists(base + "/file.out" , conf)){
     	  try {
     		  counter++;
 			Thread.sleep(100);
@@ -614,8 +606,14 @@ public class ShuffleHandler extends AuxiliaryService {
 				LOG.info("waited too long to send spill file of mapid"+mapId);
 				return null;
 			}
-		} catch (InterruptedException e) {	}
+    	  } catch (InterruptedException e) {	}
       }
+	  // Index file
+	  Path indexFileName = lDirAlloc.getLocalPathToRead(
+			  base + "/file.out.index", conf);
+	  // Map-output file
+	  Path mapOutputFileName = lDirAlloc.getLocalPathToRead(
+			  base + "/file.out", conf);    	  
       //pratik done
       
       if (LOG.isDebugEnabled()) {
@@ -632,7 +630,7 @@ public class ShuffleHandler extends AuxiliaryService {
       header.write(dob);
       ch.write(wrappedBuffer(dob.getData(), 0, dob.getLength()));
 //      final File spillfile = new File(mapOutputFileName.toString());
-      final File spillfile = testFile;
+      final File spillfile = new File(mapOutputFileName.toString());
       RandomAccessFile spill;
       try {
         spill = SecureIOUtils.openForRandomRead(spillfile, "r", user, null);

@@ -60,7 +60,7 @@ import org.apache.hadoop.util.ReflectionUtils;
 /** A Reduce task. */
 @InterfaceAudience.Private
 @InterfaceStability.Unstable
-public class ReduceTask extends Task {
+public class ReduceTask<INKEY,INVALUE,OUTKEY,OUTVALUE> extends Task {
 
   static {                                        // register a ctor
     WritableFactories.setFactory
@@ -127,6 +127,11 @@ public class ReduceTask extends Task {
   // A sorted set for keeping a set of map output files on disk
   private final SortedSet<FileStatus> mapOutputFilesOnDisk = 
       new TreeSet<FileStatus>(mapOutputFileComparator);
+  
+  //pratik
+  org.apache.hadoop.mapreduce.Reducer<INKEY,INVALUE,OUTKEY,OUTVALUE> reducer = null;
+  org.apache.hadoop.mapreduce.RecordWriter<OUTKEY,OUTVALUE> trackedRW = null;
+
   
   public ReduceTask() {
     super();
@@ -373,6 +378,9 @@ public class ReduceTask extends Task {
                   mapOutputFile, localMapFiles);
     shuffleConsumerPlugin.init(shuffleContext);
 
+    //pratik moved following from runNewReducer
+    setupReducer(job, reporter);
+    
     rIter = shuffleConsumerPlugin.run();
 
     LOG.info("vandit. ReduceTask.java ends");
@@ -401,7 +409,7 @@ public class ReduceTask extends Task {
  //   		break;
     	}*/
   //  }
-
+    trackedRW.close(null); // original requires rducerContext, but never uses it. So null is just fine.
     shuffleConsumerPlugin.close();
     done(umbilical, reporter);
   }
@@ -428,7 +436,8 @@ public class ReduceTask extends Task {
   }
   
   @SuppressWarnings("unchecked")
-  private <INKEY,INVALUE,OUTKEY,OUTVALUE>
+  private
+  //<INKEY,INVALUE,OUTKEY,OUTVALUE> changes by pratik
   void runOldReducer(JobConf job,
                      TaskUmbilicalProtocol umbilical,
                      final TaskReporter reporter,
@@ -441,8 +450,10 @@ public class ReduceTask extends Task {
     // make output collector
     String finalName = getOutputName(getPartition());
 
-    RecordWriter<OUTKEY, OUTVALUE> out = new OldTrackingRecordWriter<OUTKEY, OUTVALUE>(
-        this, job, reporter, finalName);
+    //pratik commented this
+//    RecordWriter<OUTKEY, OUTVALUE> out = new OldTrackingRecordWriter<OUTKEY, OUTVALUE>(
+//        this, job, reporter, finalName);
+    RecordWriter<OUTKEY, OUTVALUE> out = null;
     final RecordWriter<OUTKEY, OUTVALUE> finalOut = out;
     
     OutputCollector<OUTKEY,OUTVALUE> collector = 
@@ -501,7 +512,8 @@ public class ReduceTask extends Task {
 
     @SuppressWarnings({ "deprecation", "unchecked" })
     public OldTrackingRecordWriter(ReduceTask reduce, JobConf job,
-        TaskReporter reporter, String finalName) throws IOException {
+//    		TaskReporter reporter, pratik commented parts of this method. It is never used
+    		String finalName) throws IOException {
       this.reduceOutputCounter = reduce.reduceOutputCounter;
       this.fileOutputByteCounter = reduce.fileOutputByteCounter;
       List<Statistics> matchedStats = null;
@@ -512,8 +524,9 @@ public class ReduceTask extends Task {
 
       FileSystem fs = FileSystem.get(job);
       long bytesOutPrev = getOutputBytes(fsStats);
-      this.real = job.getOutputFormat().getRecordWriter(fs, job, finalName,
-          reporter);
+//      this.real = job.getOutputFormat().getRecordWriter(fs, job, finalName,
+//          reporter);
+      this.real = null;
       long bytesOutCurr = getOutputBytes(fsStats);
       fileOutputByteCounter.increment(bytesOutCurr - bytesOutPrev);
     }
@@ -602,8 +615,25 @@ public class ReduceTask extends Task {
     }
   }
 
+  private  void setupReducer(JobConf job, final TaskReporter reporter) 
+		  throws IOException,InterruptedException, ClassNotFoundException{
+	// make a task context so we can get the classes
+	    org.apache.hadoop.mapreduce.TaskAttemptContext taskContext =
+	      new org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl(job,
+	          getTaskID(), reporter);
+	    // make a reducer
+	    reducer =
+	      (org.apache.hadoop.mapreduce.Reducer<INKEY,INVALUE,OUTKEY,OUTVALUE>)
+	        ReflectionUtils.newInstance(taskContext.getReducerClass(), job);
+	    trackedRW = 
+	      new NewTrackingRecordWriter<OUTKEY, OUTVALUE>(this, taskContext);
+	    job.setBoolean("mapred.skip.on", isSkipping());
+	    job.setBoolean(JobContext.SKIP_RECORDS, isSkipping());
+  }
+
   @SuppressWarnings("unchecked")
-  private <INKEY,INVALUE,OUTKEY,OUTVALUE>
+  private 
+  //<INKEY,INVALUE,OUTKEY,OUTVALUE>
   void runNewReducer(JobConf job,
                      final TaskUmbilicalProtocol umbilical,
                      final TaskReporter reporter,
@@ -611,6 +641,7 @@ public class ReduceTask extends Task {
                      RawComparator<INKEY> comparator,
                      Class<INKEY> keyClass,
                      Class<INVALUE> valueClass
+                     //,org.apache.hadoop.mapreduce.RecordWriter<OUTKEY,OUTVALUE> trackedRW, org.apache.hadoop.mapreduce.Reducer<INKEY,INVALUE,OUTKEY,OUTVALUE> reducer
                      ) throws IOException,InterruptedException, 
                               ClassNotFoundException {
     // wrap value iterator to report progress.
@@ -634,7 +665,7 @@ public class ReduceTask extends Task {
         return ret;
       }
     };
-    // make a task context so we can get the classes
+ /*// make a task context so we can get the classes
     org.apache.hadoop.mapreduce.TaskAttemptContext taskContext =
       new org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl(job,
           getTaskID(), reporter);
@@ -645,7 +676,7 @@ public class ReduceTask extends Task {
     org.apache.hadoop.mapreduce.RecordWriter<OUTKEY,OUTVALUE> trackedRW = 
       new NewTrackingRecordWriter<OUTKEY, OUTVALUE>(this, taskContext);
     job.setBoolean("mapred.skip.on", isSkipping());
-    job.setBoolean(JobContext.SKIP_RECORDS, isSkipping());
+    job.setBoolean(JobContext.SKIP_RECORDS, isSkipping());*/
     org.apache.hadoop.mapreduce.Reducer.Context 
          reducerContext = createReduceContext(reducer, job, getTaskID(),
                                                rIter, reduceInputKeyCounter, 
@@ -657,7 +688,7 @@ public class ReduceTask extends Task {
     try {
       reducer.run(reducerContext);
     } finally {
-      trackedRW.close(reducerContext);
+//      trackedRW.close(reducerContext);
     }
   }
   
