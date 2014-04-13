@@ -154,7 +154,7 @@ public class LineRecordReader extends RecordReader<LongWritable, Text> {
       /*if (newSize < maxLineLength) {
         break;
       }*/
-      LOG.info("Navya rocks"+newSize);
+      //LOG.info("Navya rocks"+newSize);
       // line too long. try again
      /* LOG.info("Skipped line of size " + newSize + " at pos " + 
                (pos - newSize));*/

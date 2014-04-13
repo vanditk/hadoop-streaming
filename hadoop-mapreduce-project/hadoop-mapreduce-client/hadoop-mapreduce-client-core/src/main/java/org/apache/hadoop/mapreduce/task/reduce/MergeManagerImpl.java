@@ -304,6 +304,14 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
   synchronized void unreserve(long size) {
     usedMemory -= size;
   }
+  
+  public synchronized RawKeyValueIterator startStreamingMerger(){
+	  
+	  return inMemoryMerger.startMerge(inMemoryMapOutputs);
+	    	  
+  }
+  
+  
 //pratik changed the return type
   public synchronized RawKeyValueIterator closeInMemoryFile(InMemoryMapOutput<K,V> mapOutput) { 
     inMemoryMapOutputs.add(mapOutput);
@@ -311,9 +319,10 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
         + ", inMemoryMapOutputs.size() -> " + inMemoryMapOutputs.size()
         + ", commitMemory -> " + commitMemory + ", usedMemory ->" + usedMemory);
     //added by pratik
-
-    return inMemoryMerger.startMerge(inMemoryMapOutputs);
-    
+    //return null;
+    //start from shuffle/
+    //return inMemoryMerger.startMerge(inMemoryMapOutputs);
+    return null;
     //commented also by pratik
 /*    commitMemory+= mapOutput.getSize();
 
