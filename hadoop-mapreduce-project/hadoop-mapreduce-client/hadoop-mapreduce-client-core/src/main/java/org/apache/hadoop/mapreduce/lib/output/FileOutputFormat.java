@@ -285,7 +285,8 @@ public static final String OUTDIR = "mapreduce.output.fileoutputformat.outputdir
       (FileOutputCommitter) getOutputCommitter(context);
     return new Path(
 //    		committer.getWorkPath(),		//pratik: no path _temporary/../../. store directly where committed ones go.
-    		committer.getCommittedTaskPath(context),
+//    		committer.getCommittedTaskPath(context),
+    		getOutputPath(context),
     		getUniqueFile(context, 
       getOutputName(context), extension));
   }
