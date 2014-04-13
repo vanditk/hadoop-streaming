@@ -283,7 +283,10 @@ public static final String OUTDIR = "mapreduce.output.fileoutputformat.outputdir
                                  String extension) throws IOException{
     FileOutputCommitter committer = 
       (FileOutputCommitter) getOutputCommitter(context);
-    return new Path(committer.getWorkPath(), getUniqueFile(context, 
+    return new Path(
+//    		committer.getWorkPath(),		//pratik: no path _temporary/../../. store directly where committed ones go.
+    		committer.getCommittedTaskPath(context),
+    		getUniqueFile(context, 
       getOutputName(context), extension));
   }
 

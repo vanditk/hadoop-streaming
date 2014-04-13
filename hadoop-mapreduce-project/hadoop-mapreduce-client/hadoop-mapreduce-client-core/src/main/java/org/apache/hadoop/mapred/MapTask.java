@@ -1479,7 +1479,7 @@ public class MapTask extends Task {
       }
       // release sort buffer before the merge
       kvbuffer = null;
-      mergeParts();
+//      mergeParts(); pratik commented this
       Path outputPath = mapOutputFile.getOutputFile();
       fileOutputByteCounter.increment(rfs.getFileStatus(outputPath).getLen());
     }
@@ -1655,7 +1655,12 @@ public class MapTask extends Task {
         	try{
         		spillFile = rfs.pathToFile(tmpFolderSpillFilePath);        		
         	}catch(Exception ex){  	}
+        	int counter =0;
         	while(spillFile!=null && spillFile.exists()){
+        		if(++counter > 50){
+        			LOG.info("Old spillFile was not read for 5 secs. so shutting down...");
+        			throw new InterruptedException("Old spillFile was not read for 5 secs. so shutting down...");
+        		}
         		Thread.sleep(100); //100 millis
         	}        	
         }
