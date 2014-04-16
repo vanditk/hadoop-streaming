@@ -402,8 +402,12 @@ class Fetcher<K,V> extends Thread {
         synchronized (this) {
         	notify();
 		}*/
+        //pratik: mostly it came here means that shuffleHandler sent 404 for this mapId.
+        //this will only happen when the mapper died or finished.
+        //so remove this mapId.
         // Pratik bhai..idhar dekho bhai.. ek hi mapper hai.
-        remaining.clear();
+//        remaining.clear();
+        remaining.remove(mapId); 
         //Don't know which one was bad, so consider all of them as bad
         //return remaining.toArray(new TaskAttemptID[remaining.size()]);
         return null;
@@ -478,7 +482,8 @@ class Fetcher<K,V> extends Thread {
                  mapId + " decomp: " + 
                  decompressedLength + ", " + compressedLength, ioe);
         //pratik: am hacking the error to think that this ends the reducer taking spills... forcefully end the copyFromHost here.
-        remaining.clear();
+//        remaining.clear();
+        remaining.remove(mapId);
         //following will start the waiting shuffle thread and rIter = null will tell shuffle to end 
         //while(this.rIter!=null){}
         LOG.info("vandit. Fetcher going to notify. Inside catch");

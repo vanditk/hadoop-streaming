@@ -192,9 +192,9 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
     }
     //pratik 
     System.out.println("vandit. starting fetchers.");
-    for (Fetcher<K,V> fetcher : fetchers) {
+//    for (Fetcher<K,V> fetcher : fetchers) {
     	while(true){
-    		RawKeyValueIterator iter;
+    		RawKeyValueIterator iter = null;
     		Log.info("vandit. Shuffle Waiting for Map output");
     		/*synchronized (fetcher){
     			fetcher.setMapOutput(null);
@@ -202,7 +202,7 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
     			//iter = fetcher.getMapOutput();
     			
     		}*/
-    		Thread.sleep(1*60*1000/2); // sleep for 5 mins to get output 
+    		Thread.sleep(1*60*1000/6); // sleep for 10 sec to get output 
     		iter = merger.startStreamingMerger();
     		Log.info("vandit. Shuffle Got Map output");
     		if(iter == null)
@@ -218,7 +218,7 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
 			}
     	}
     	
-      }
+//      }
   //pratik : these all need to go for now
     /*    
     // Wait for shuffle to complete successfully

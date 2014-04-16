@@ -89,7 +89,9 @@ class InMemoryMapOutput<K, V> extends MapOutput<K, V> {
     }
   
     try {
+    	LOG.info("pratik: About to read");
       IOUtils.readFully(input, memory, 0, memory.length);
+      LOG.info("pratik: read it.");
       metrics.inputBytes(memory.length);
       reporter.progress();
       LOG.info("Read " + memory.length + " bytes from map-output for " +

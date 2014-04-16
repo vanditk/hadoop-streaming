@@ -1648,7 +1648,7 @@ public class MapTask extends Task {
         }
         LOG.info("Finished spill " + numSpills);
         //modified by pratik: can i now write to reducer?
-        
+        // this is half of max wait time in ShuffleHandler.
         if(!isFirstTime){
         	RawLocalFileSystem rfs = (RawLocalFileSystem)this.rfs;
         	File spillFile=null;
