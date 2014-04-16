@@ -602,11 +602,13 @@ public class ShuffleHandler extends AuxiliaryService {
     	  try {
     		  counter++;
 			Thread.sleep(100);
-			if(counter>10){
+			if(counter>100){
 				LOG.info("waited too long to send spill file of mapid"+mapId);
 				return null;
 			}
-    	  } catch (InterruptedException e) {	}
+    	  } catch (InterruptedException e) {	
+    		  e.printStackTrace();
+    	  }
       }
 	  // Index file
 	  Path indexFileName = lDirAlloc.getLocalPathToRead(

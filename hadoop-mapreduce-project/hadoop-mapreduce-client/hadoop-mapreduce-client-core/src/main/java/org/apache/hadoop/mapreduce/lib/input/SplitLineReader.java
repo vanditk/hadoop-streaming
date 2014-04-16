@@ -38,6 +38,6 @@ public class SplitLineReader extends org.apache.hadoop.util.LineReader {
   }
 
   public boolean needAdditionalRecordAfterSplit() {
-    return false;
+    return true;
   }
 }
