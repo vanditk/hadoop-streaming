@@ -1641,10 +1641,12 @@ public class MapTask extends Task {
               mapOutputFile.getSpillIndexFileForWrite(numSpills, partitions
                   * MAP_OUTPUT_INDEX_RECORD_LENGTH);
           spillRec.writeToFile(indexFilename, job);
+          LOG.info("File#"+numSpills+" index file written to seperate file.");
         } else {
           indexCacheList.add(spillRec);
           totalIndexCacheMemory +=
             spillRec.size() * MAP_OUTPUT_INDEX_RECORD_LENGTH;
+          LOG.info("File#"+numSpills+" index file written to cache.");
         }
         LOG.info("Finished spill " + numSpills);
         //modified by pratik: can i now write to reducer?
@@ -1658,7 +1660,7 @@ public class MapTask extends Task {
         	int counter =0;
         	while(spillFile!=null && spillFile.exists()){
         		if(++counter > 150){
-        			LOG.info("Old spillFile was not read for 5 secs. so shutting down...");
+        			LOG.info("Old spillFile was not read for 15 secs. so shutting down...");
         			throw new InterruptedException("Old spillFile was not read for 5 secs. so shutting down...");
         		}
         		Thread.sleep(100); //100 millis
@@ -1670,8 +1672,17 @@ public class MapTask extends Task {
         LOG.info("written file : " + tmpFolderSpillFilePath.getName());
         if (indexCacheList.size() == 0) {
         	sameVolRename(mapOutputFile.getSpillIndexFile(numSpills), mapOutputFile.getOutputIndexFileForWriteInVolume(filename));
+        	LOG.info("File#"+numSpills+" index file written to /tmp/ file from file.");
         } else {
-        	indexCacheList.get(numSpills).writeToFile(mapOutputFile.getOutputIndexFileForWriteInVolume(filename), job);
+        	try{
+        		//pratik changing get to remove. other occurances of indexCacheList in mergeParts have been commented
+        		//
+//        	indexCacheList.get(numSpills).writeToFile(mapOutputFile.getOutputIndexFileForWriteInVolume(filename), job);
+        	indexCacheList.remove(0).writeToFile(mapOutputFile.getOutputIndexFileForWriteInVolume(filename), job);
+        	LOG.info("File#"+numSpills+" index file written to /tmp/ file from cache.");
+        	}catch(Exception e){
+        		LOG.info("could not write index file from cache.");
+        	}
         }
         
         ++numSpills;

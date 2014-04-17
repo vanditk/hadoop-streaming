@@ -321,7 +321,7 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
     //added by pratik
     //return null;
     //start from shuffle/
-    //return inMemoryMerger.startMerge(inMemoryMapOutputs);
+//    return inMemoryMerger.startMerge(inMemoryMapOutputs);
     return null;
     //commented also by pratik
 /*    commitMemory+= mapOutput.getSize();

@@ -597,12 +597,12 @@ public class ShuffleHandler extends AuxiliaryService {
       
     //Pratik was here ! ;)
       int counter = 0;
-      //wait max 1 sec for the file to be available. 
-      while(!lDirAlloc.ifExists(base + "/file.out" , conf)){
+      //wait max 2 sec for the file to be available. 
+      while(!lDirAlloc.ifExists(base + "/file.out.index" , conf)){
     	  try {
     		  counter++;
 			Thread.sleep(100);
-			if(counter>100){
+			if(counter>20){
 				LOG.info("waited too long to send spill file of mapid"+mapId);
 				return null;
 			}
@@ -633,6 +633,7 @@ public class ShuffleHandler extends AuxiliaryService {
       ch.write(wrappedBuffer(dob.getData(), 0, dob.getLength()));
 //      final File spillfile = new File(mapOutputFileName.toString());
       final File spillfile = new File(mapOutputFileName.toString());
+      final File spillIndexfile = new File(indexFileName.toString());
       RandomAccessFile spill;
       try {
         spill = SecureIOUtils.openForRandomRead(spillfile, "r", user, null);
@@ -655,6 +656,8 @@ public class ShuffleHandler extends AuxiliaryService {
               partition.transferSuccessful();
               //pratik was here too
               boolean result =  spillfile.delete();
+              if(spillIndexfile.exists())
+            	  spillIndexfile.delete();
               LOG.info(spillfile + " deleted = " + result);
               //pratik done
             }

@@ -126,6 +126,7 @@ class EventFetcher<K,V> extends Thread {
 	        scheduler.resolve(eventContent);
 	  }
 	  System.out.println("Vandit. Got "+update.length+" Map started Events");
+	  LOG.info("Vandit. Got "+update.length+" Map started Events");
 	  return update.length;
 	  
   }

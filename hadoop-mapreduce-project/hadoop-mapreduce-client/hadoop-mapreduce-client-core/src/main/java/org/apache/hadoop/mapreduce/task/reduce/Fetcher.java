@@ -398,7 +398,7 @@ class Fetcher<K,V> extends Thread {
       } catch (IllegalArgumentException e) {
         badIdErrs.increment(1);
         LOG.warn("Invalid map id ", e);
-        /*while(this.rIter!=null){}
+       /* while(this.rIter!=null){}
         synchronized (this) {
         	notify();
 		}*/
@@ -460,10 +460,11 @@ class Fetcher<K,V> extends Thread {
       //following added by pratik:
       long endTime = System.currentTimeMillis();
       // Inform the shuffle scheduler
-      //while(this.rIter!=null){}
+      mapOutput.commit();
+      /*while(this.rIter!=null){}
       this.rIter = mapOutput.commit();
       LOG.info("vandit. Fetcher going to notify");
-      /*synchronized (this){
+      synchronized (this){
     	  notify(); 
       }*/
       
@@ -485,11 +486,10 @@ class Fetcher<K,V> extends Thread {
 //        remaining.clear();
         remaining.remove(mapId);
         //following will start the waiting shuffle thread and rIter = null will tell shuffle to end 
-        //while(this.rIter!=null){}
+        /*while(this.rIter!=null){}        
         LOG.info("vandit. Fetcher going to notify. Inside catch");
-        
         this.rIter = null;
-        /*synchronized (this){
+        synchronized (this){
       	  notify();
       	
         }*/

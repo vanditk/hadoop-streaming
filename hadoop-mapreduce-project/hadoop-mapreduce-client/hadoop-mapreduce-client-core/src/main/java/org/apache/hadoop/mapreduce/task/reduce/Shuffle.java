@@ -196,10 +196,10 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
     	while(true){
     		RawKeyValueIterator iter = null;
     		Log.info("vandit. Shuffle Waiting for Map output");
-    		/*synchronized (fetcher){
+ /*   		synchronized (fetcher){
     			fetcher.setMapOutput(null);
     			fetcher.wait();
-    			//iter = fetcher.getMapOutput();
+    			iter = fetcher.getMapOutput();
     			
     		}*/
     		Thread.sleep(1*60*1000/6); // sleep for 10 sec to get output 

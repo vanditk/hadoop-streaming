@@ -62,10 +62,11 @@ class IndexCache {
                                          Path fileName, String expectedIndexOwner)
     throws IOException {
 
-    IndexInformation info = cache.get(mapId);
+	IndexInformation info = readIndexFileToCache(fileName, mapId, expectedIndexOwner);
+/*    IndexInformation info = cache.get(mapId);
 
     if (info == null) {
-      info = readIndexFileToCache(fileName, mapId, expectedIndexOwner);
+  	  info = readIndexFileToCache(fileName, mapId, expectedIndexOwner);
     } else {
       synchronized(info) {
         while (isUnderConstruction(info)) {
@@ -78,7 +79,7 @@ class IndexCache {
       }
       LOG.debug("IndexCache HIT: MapId " + mapId + " found");
     }
-
+*/
     if (info.mapSpillRecord.size() == 0 ||
         info.mapSpillRecord.size() <= reduce) {
       throw new IOException("Invalid request " +
@@ -100,7 +101,8 @@ class IndexCache {
     throws IOException {
     IndexInformation info;
     IndexInformation newInd = new IndexInformation();
-    if ((info = cache.putIfAbsent(mapId, newInd)) != null) {
+    //pratik; need to turn off the cache so that old values are not sent
+ /*   if ((info = cache.putIfAbsent(mapId, newInd)) != null) {
       synchronized(info) {
         while (isUnderConstruction(info)) {
           try {
@@ -112,7 +114,7 @@ class IndexCache {
       }
       LOG.debug("IndexCache HIT: MapId " + mapId + " found");
       return info;
-    }
+    }*/
     LOG.debug("IndexCache MISS: MapId " + mapId + " not found") ;
     SpillRecord tmp = null;
     try { 
