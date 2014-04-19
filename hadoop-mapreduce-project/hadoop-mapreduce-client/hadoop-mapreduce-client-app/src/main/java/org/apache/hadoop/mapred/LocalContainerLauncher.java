@@ -521,6 +521,20 @@ public class LocalContainerLauncher extends AbstractService implements
     public void removeAll() throws IOException {
       throw new UnsupportedOperationException();
     }
+
+	@Override
+	public Path getStreamingOutputFileForWriteInVolume(Path existing,
+			int spillNum) {
+		// TODO Auto-generated method stub
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public Path getStreamingOutputIndexFileForWriteInVolume(Path existing,
+			int spillNum) {
+		// TODO Auto-generated method stub
+		throw new UnsupportedOperationException();
+	}
   }
 
 }

@@ -311,7 +311,13 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
 	    	  
   }
   
-  
+  public boolean hasInMemoryMapOutputs(){
+	  //vandit.
+	  synchronized(inMemoryMapOutputs){
+		  return inMemoryMapOutputs.size() > 0;
+	  }
+	  
+  }
 //pratik changed the return type
   public synchronized RawKeyValueIterator closeInMemoryFile(InMemoryMapOutput<K,V> mapOutput) { 
     inMemoryMapOutputs.add(mapOutput);

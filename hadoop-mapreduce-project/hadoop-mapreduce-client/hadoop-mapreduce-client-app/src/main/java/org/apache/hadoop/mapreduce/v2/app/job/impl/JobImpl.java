@@ -848,7 +848,7 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
 
 	      //hosts= eventHosts.toArray(hosts);
 	      hosts = taskStartedEventContents.toArray(hosts);
-	      mapAttemptStartedEvents.clear();
+//	      mapAttemptStartedEvents.clear(); // maintain duplicates at reducer
 	      System.out.println("JobImpl. GetMapStartedEvents called.");
 		  return hosts;
 	    }

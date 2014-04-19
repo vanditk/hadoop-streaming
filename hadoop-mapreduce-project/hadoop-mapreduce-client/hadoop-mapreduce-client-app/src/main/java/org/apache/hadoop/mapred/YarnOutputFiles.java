@@ -94,6 +94,13 @@ public class YarnOutputFiles extends MapOutputFile {
     return new Path(attemptOutputDir, MAP_OUTPUT_FILENAME_STRING);
   }
 
+  public Path getStreamingOutputFileForWriteInVolume(Path existing, int spillNum){
+	  Path outputDir = new Path(existing.getParent(), JOB_OUTPUT_DIR);
+	    Path attemptOutputDir = new Path(outputDir,
+	        conf.get(JobContext.TASK_ATTEMPT_ID));
+//	    return new Path(attemptOutputDir, MAP_OUTPUT_FILENAME_STRING);
+	    return new Path(attemptOutputDir, "file_"+spillNum+".out");
+  }
   /**
    * Return the path to a local map output index file created earlier
    * 
@@ -133,6 +140,14 @@ public class YarnOutputFiles extends MapOutputFile {
                                       MAP_OUTPUT_INDEX_SUFFIX_STRING);
   }
 
+  public Path getStreamingOutputIndexFileForWriteInVolume(Path existing, int spillNum){
+	  Path outputDir = new Path(existing.getParent(), JOB_OUTPUT_DIR);
+	    Path attemptOutputDir = new Path(outputDir,
+	        conf.get(JobContext.TASK_ATTEMPT_ID));
+//	    return new Path(attemptOutputDir, MAP_OUTPUT_FILENAME_STRING +
+//	                                      MAP_OUTPUT_INDEX_SUFFIX_STRING);
+	    return new Path(attemptOutputDir,"file_"+spillNum+".out.index");
+  }
   /**
    * Return a local map spill file created earlier.
    * 

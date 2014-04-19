@@ -151,7 +151,7 @@ public class LineRecordReader extends RecordReader<LongWritable, Text> {
 				pos += newSize;
 				
 				if(newSize ==0){
-					if (counter < 150) {
+					if (counter < 25) {
 						try {
 							counter++;
 							Thread.sleep(200);
@@ -162,7 +162,7 @@ public class LineRecordReader extends RecordReader<LongWritable, Text> {
 	
 					} else {
 						//break;
-						System.out.println("Vandit. counter>=150");
+						System.out.println("Vandit. 5 seconds or more since last input.");
 						key = null;
 						value = null;
 						return false;

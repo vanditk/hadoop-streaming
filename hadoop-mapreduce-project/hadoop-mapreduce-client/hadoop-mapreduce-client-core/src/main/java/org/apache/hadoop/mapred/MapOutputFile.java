@@ -69,6 +69,14 @@ public abstract class MapOutputFile implements Configurable {
    * Create a local map output file name on the same volume.
    */
   public abstract Path getOutputFileForWriteInVolume(Path existing);
+  
+  /**
+   * 
+   * @param existing :already existing path
+   * @param spillNum :the number of this file
+   * @return adds /output/task_Attempt_id/file_'spillNum'.out
+   */
+  public abstract Path getStreamingOutputFileForWriteInVolume(Path existing, int spillNum);
 
   /**
    * Return the path to a local map output index file created earlier
@@ -91,6 +99,14 @@ public abstract class MapOutputFile implements Configurable {
    * Create a local map output index file name on the same volume.
    */
   public abstract Path getOutputIndexFileForWriteInVolume(Path existing);
+  
+  /**
+   * 
+   * @param existing: existing path
+   * @param spillNum: spill num of the file
+   * @return adds /output/task_attempt_id/file_'spillNum'.out.index
+   */
+  public abstract Path getStreamingOutputIndexFileForWriteInVolume(Path existing, int spillNum);
 
   /**
    * Return a local map spill file created earlier.

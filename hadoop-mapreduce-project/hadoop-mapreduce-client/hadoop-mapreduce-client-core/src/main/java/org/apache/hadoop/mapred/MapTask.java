@@ -925,6 +925,8 @@ public class MapTask extends Task {
     private MapOutputFile mapOutputFile;
     private Progress sortPhase;
     private Counters.Counter spilledRecordsCounter;
+    private int collectedRecordsCount;
+    private int spillCollectedRecordsLimit;
 
     public MapOutputBuffer() {
     }
@@ -941,6 +943,10 @@ public class MapTask extends Task {
       partitions = job.getNumReduceTasks();
       rfs = ((LocalFileSystem)FileSystem.getLocal(job)).getRaw();
 
+      // vandit.
+      collectedRecordsCount = 0;
+      spillCollectedRecordsLimit = job.getInt("map.spill.record.limit",2000);
+      
       //sanity checks
       final float spillper =
         job.getFloat(JobContext.MAP_SORT_SPILL_PERCENT, (float)0.8);
@@ -1045,6 +1051,9 @@ public class MapTask extends Task {
     public synchronized void collect(K key, V value, final int partition
                                      ) throws IOException {
       reporter.progress();
+      //vandit
+      collectedRecordsCount++;
+      
       if (key.getClass() != keyClass) {
         throw new IOException("Type mismatch in key from map: expected "
                               + keyClass.getName() + ", received "
@@ -1061,7 +1070,8 @@ public class MapTask extends Task {
       }
       checkSpillException();
       bufferRemaining -= METASIZE;
-      if (bufferRemaining <= 0) {
+      //vandit.
+      if (collectedRecordsCount >= spillCollectedRecordsLimit || bufferRemaining <= 0) {
         // start spill if the thread is not running and the soft limit has been
         // reached
         spillLock.lock();
@@ -1082,8 +1092,10 @@ public class MapTask extends Task {
                 bufferRemaining = Math.min(
                     distanceTo(bufindex, kvbidx) - 2 * METASIZE,
                     softLimit - bUsed) - METASIZE;
+                collectedRecordsCount = 0;
                 continue;
-              } else if (bufsoftlimit && kvindex != kvend) {
+                //vandit
+              } else if (collectedRecordsCount >= spillCollectedRecordsLimit || (bufsoftlimit && kvindex != kvend)) {
                 // spill records, if any collected; check latter, as it may
                 // be possible for metadata alignment to hit spill pcnt
                 startSpill();
@@ -1113,6 +1125,7 @@ public class MapTask extends Task {
                       // soft limit
                       softLimit)) - 2 * METASIZE;
               }
+              collectedRecordsCount = 0;
             }
           } while (false);
         } finally {
@@ -1480,8 +1493,8 @@ public class MapTask extends Task {
       // release sort buffer before the merge
       kvbuffer = null;
 //      mergeParts(); pratik commented this
-      Path outputPath = mapOutputFile.getOutputFile();
-      fileOutputByteCounter.increment(rfs.getFileStatus(outputPath).getLen());
+//      Path outputPath = mapOutputFile.getOutputFile();
+//      fileOutputByteCounter.increment(rfs.getFileStatus(new Path(outputPath.getParent(),"file_"+(numSpills-1)+".out")).getLen());
     }
 
     public void close() { }
@@ -1651,7 +1664,7 @@ public class MapTask extends Task {
         LOG.info("Finished spill " + numSpills);
         //modified by pratik: can i now write to reducer?
         // this is half of max wait time in ShuffleHandler.
-        if(!isFirstTime){
+        /*if(!isFirstTime){
         	RawLocalFileSystem rfs = (RawLocalFileSystem)this.rfs;
         	File spillFile=null;
         	try{
@@ -1666,26 +1679,53 @@ public class MapTask extends Task {
         		Thread.sleep(100); //100 millis
         	}        	
         }
-        isFirstTime=false;
-        tmpFolderSpillFilePath = mapOutputFile.getOutputFileForWriteInVolume(filename);
+        isFirstTime=false;*/
+        //filename is bad. but we need only the path upto the filename and not exactly the name of file.
+        //numSpills is used in the output filename construction
+        
+        tmpFolderSpillFilePath = mapOutputFile.getStreamingOutputFileForWriteInVolume(filename,numSpills);
         sameVolRename(filename,tmpFolderSpillFilePath);
+        
         LOG.info("written file : " + tmpFolderSpillFilePath.getName());
         if (indexCacheList.size() == 0) {
-        	sameVolRename(mapOutputFile.getSpillIndexFile(numSpills), mapOutputFile.getOutputIndexFileForWriteInVolume(filename));
+        	sameVolRename(mapOutputFile.getSpillIndexFile(numSpills), mapOutputFile.getStreamingOutputIndexFileForWriteInVolume(filename,numSpills));
         	LOG.info("File#"+numSpills+" index file written to /tmp/ file from file.");
         } else {
         	try{
         		//pratik changing get to remove. other occurances of indexCacheList in mergeParts have been commented
-        		//
 //        	indexCacheList.get(numSpills).writeToFile(mapOutputFile.getOutputIndexFileForWriteInVolume(filename), job);
-        	indexCacheList.remove(0).writeToFile(mapOutputFile.getOutputIndexFileForWriteInVolume(filename), job);
+        	indexCacheList.remove(0).writeToFile(mapOutputFile.getStreamingOutputIndexFileForWriteInVolume(filename,numSpills), job);
         	LOG.info("File#"+numSpills+" index file written to /tmp/ file from cache.");
         	}catch(Exception e){
         		LOG.info("could not write index file from cache.");
         	}
         }
         
+        //garbage collection of old spills
+    	int oldSpill = numSpills - 100;
+    	if(oldSpill>=0){
+    		RawLocalFileSystem rfs = (RawLocalFileSystem)this.rfs;
+    		File file=null;
+    		try{
+    			file = rfs.pathToFile(mapOutputFile.getStreamingOutputFileForWriteInVolume(filename, oldSpill));
+    			if(file!=null && file.exists()){
+    				file.delete();
+    			}
+    			file = rfs.pathToFile(mapOutputFile.getStreamingOutputIndexFileForWriteInVolume(filename, oldSpill));
+    			if(file!=null && file.exists()){
+    				file.delete();
+    			}
+    			
+    		}catch(Exception ex){  	}    		
+    	}
+    	
+    	//take care of rollover
+        if(numSpills>1000000){
+        	numSpills=0;
+        }
+
         ++numSpills;
+
       } finally {
         if (out != null) out.close();
         

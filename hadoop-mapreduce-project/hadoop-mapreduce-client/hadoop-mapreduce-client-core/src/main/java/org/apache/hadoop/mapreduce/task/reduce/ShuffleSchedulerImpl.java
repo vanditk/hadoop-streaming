@@ -67,9 +67,12 @@ public class ShuffleSchedulerImpl<K,V> implements ShuffleScheduler<K,V> {
   private final static int REPORT_FAILURE_LIMIT = 10;
 
   private final boolean[] finishedMaps;
+  private ArrayList<String> remainingMapIds;
 
   private final int totalMaps;
   private int remainingMaps;
+  //pratik
+  private int startedMaps=0;
   private Map<String, MapHost> mapLocations = new HashMap<String, MapHost>();
   private Set<MapHost> pendingHosts = new HashSet<MapHost>();
   private Set<TaskAttemptID> obsoleteMaps = new HashSet<TaskAttemptID>();
@@ -112,7 +115,8 @@ public class ShuffleSchedulerImpl<K,V> implements ShuffleScheduler<K,V> {
                           Counters.Counter failedShuffleCounter) {
     totalMaps = job.getNumMapTasks();
     abortFailureLimit = Math.max(30, totalMaps / 10);
-
+    //vandit.
+    remainingMapIds = new ArrayList<String>();
     remainingMaps = totalMaps;
     finishedMaps = new boolean[remainingMaps];
     this.reporter = reporter;
@@ -143,12 +147,32 @@ public class ShuffleSchedulerImpl<K,V> implements ShuffleScheduler<K,V> {
       addKnownMapOutput(u.getHost() + ":" + u.getPort(),
           u.toString(),
           tsec.getTaskAttemptId());
-     
+     addMapAttemptStarted(tsec.getTaskAttemptId());
   }
+  
+  private void addMapAttemptStarted(
+		org.apache.hadoop.mapred.TaskAttemptID taskAttemptId) {
+	// TODO Auto-generated method stub
+	  synchronized (remainingMapIds) {
+		  remainingMapIds.add(taskAttemptId.toString());
+	}
+	  LOG.info("Vandit. Added to remainingMapids array: "+taskAttemptId.toString());
+	
+}
+
+public String[] getRemainingMaps(){
+	  String[] remainingMapIdsArray;
+	  synchronized (remainingMapIds) {
+		  remainingMapIdsArray = remainingMapIds.toArray(new String[0]);
+	}
+	  return remainingMapIdsArray;
+  }
+  
 
   
   @Override
   public void resolve(TaskCompletionEvent event) {
+	  boolean removed = false;
     switch (event.getTaskStatus()) {
     case SUCCEEDED:
       URI u = getBaseURI(reduceId, event.getTaskTrackerHttp());
@@ -156,6 +180,14 @@ public class ShuffleSchedulerImpl<K,V> implements ShuffleScheduler<K,V> {
           u.toString(),
           event.getTaskAttemptId());
       maxMapRuntime = Math.max(maxMapRuntime, event.getTaskRunTime());
+      synchronized (remainingMapIds) {
+    	  removed = remainingMapIds.remove(event.getTaskAttemptId().toString());
+    	  if(removed)
+    	  {
+    		  LOG.info("Vandit. Removed from remainingMapIds. ID:"+event.getTaskAttemptId());
+    		  
+    	  }
+	}
       break;
     case FAILED:
     case KILLED:
@@ -360,9 +392,16 @@ public class ShuffleSchedulerImpl<K,V> implements ShuffleScheduler<K,V> {
       System.out.println("vandit. Adding new MapHost: "+host);
     }
     host.addKnownMap(mapId);
+    //pratik: Just let hosts be in mapLocations, till everyone has arrived,
+    //once everyone registers, we gather hosts in pendingHosts, and let fetchers begin.
+    ++startedMaps;
     // Mark the host as pending
-    if (host.getState() == State.PENDING) {
-      pendingHosts.add(host);
+//    if (host.getState() == State.PENDING) {
+    if(totalMaps ==startedMaps){
+      Iterator<MapHost> iter = mapLocations.values().iterator();
+      while(iter.hasNext()){
+    	pendingHosts.add(iter.next());
+      }
       notifyAll();
     }
   }
@@ -379,7 +418,9 @@ public class ShuffleSchedulerImpl<K,V> implements ShuffleScheduler<K,V> {
 
 
   public synchronized MapHost getHost() throws InterruptedException {
-      while(pendingHosts.isEmpty()) {
+//      while(pendingHosts.isEmpty()) {
+	  //pratik: no one starts before all mappers are up.
+	  while(startedMaps < totalMaps){
         wait();
       }
 

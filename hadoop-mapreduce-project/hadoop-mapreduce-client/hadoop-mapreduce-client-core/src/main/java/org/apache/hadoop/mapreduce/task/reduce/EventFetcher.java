@@ -18,6 +18,8 @@
 package org.apache.hadoop.mapreduce.task.reduce;
 
 import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -62,12 +64,12 @@ class EventFetcher<K,V> extends Thread {
   public void run() {
     int failures = 0;
     LOG.info(reduce + " Thread started: " + getName());
-    
+    List<TaskAttemptID> mapsStarted = new LinkedList<TaskAttemptID>();
     try {
       while (!stopped && !Thread.currentThread().isInterrupted()) {
         try {
           int numNewMaps = getMapCompletionEvents();
-          int numNewMapsStarted = getMapStartedEvents();
+          int numNewMapsStarted = getMapStartedEvents(mapsStarted);
           
           failures = 0;
           if (numNewMaps > 0) {
@@ -117,17 +119,22 @@ class EventFetcher<K,V> extends Thread {
    */ 
   
   
-  protected int getMapStartedEvents()
+  protected int getMapStartedEvents(List<TaskAttemptID> mapsStarted)
   {
 	  TaskStartedEventContent[] update =
 	          umbilical.getMapStartedEvents((org.apache.hadoop.mapred.TaskAttemptID)reduce);
-	  
+	  int newMaps=0;
 	  for (TaskStartedEventContent eventContent : update) {
-	        scheduler.resolve(eventContent);
+		  TaskAttemptID mapId = eventContent.getTaskAttemptId();
+		  if(!mapsStarted.contains(mapId)){
+			  mapsStarted.add(mapId);
+			  scheduler.resolve(eventContent);
+			  newMaps++;
+		  }
 	  }
-	  System.out.println("Vandit. Got "+update.length+" Map started Events");
-	  LOG.info("Vandit. Got "+update.length+" Map started Events");
-	  return update.length;
+	  System.out.println("Vandit. Got "+newMaps+" Map started Events");
+	  LOG.info("Vandit. Got "+newMaps+" Map started Events");
+	  return newMaps;
 	  
   }
   

@@ -223,4 +223,17 @@ public class MROutputFiles extends MapOutputFile {
     super.setConf(conf);
   }
 
+@Override
+public Path getStreamingOutputFileForWriteInVolume(Path existing, int spillNum) {
+	return new Path(existing.getParent(),
+	        "file_"+spillNum+".out" );
+}
+
+@Override
+public Path getStreamingOutputIndexFileForWriteInVolume(Path existing,
+		int spillNum) {
+	return new Path(existing.getParent(),
+	        "file_"+spillNum+".out" + MAP_OUTPUT_INDEX_SUFFIX_STRING);
+}
+
 }

@@ -41,6 +41,8 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -458,7 +460,7 @@ public class ShuffleHandler extends AuxiliaryService {
       }
       final Map<String,List<String>> q =
         new QueryStringDecoder(request.getUri()).getParameters();
-      final List<String> mapIds = splitMaps(q.get("map"));
+      List<String> mapIds = splitMaps(q.get("map"));
       final List<String> reduceQ = q.get("reduce");
       final List<String> jobQ = q.get("job");
       if (LOG.isDebugEnabled()) {
@@ -488,6 +490,12 @@ public class ShuffleHandler extends AuxiliaryService {
         sendError(ctx, "Bad job parameter", BAD_REQUEST);
         return;
       }
+      //holds the currentSpillId of all mappers needed by this reducer.
+      Map<String, Integer> currentSpills = new HashMap<String, Integer>();
+      for(String mapId: mapIds){
+    	  currentSpills.put(mapId, 0);
+      }
+      
       final String reqUri = request.getUri();
       if (null == reqUri) {
         // TODO? add upstream?
@@ -510,14 +518,59 @@ public class ShuffleHandler extends AuxiliaryService {
       ChannelFuture lastMap = null;
       boolean firstTime = true;
       while(ch.isOpen()){
-	    	  
-	      for (String mapId : mapIds) {
+    	  	//are there any mappers who want to send data?
+	    	  if(mapIds.isEmpty()){
+	      		sendError(ctx, NOT_FOUND);
+	      		LOG.info("All mappers died.");
+	      		System.out.println("All mappers died.");
+	      		return;
+	      	  }
+	    	  Iterator<String> iter = mapIds.iterator();
+	    	  while(iter.hasNext()){
+	    		  String mapId = iter.next();
+	    		  try {
+	    			  int spillNum=currentSpills.get(mapId);
+	    	          lastMap =
+	    	            sendMapOutput(ctx, ch, userRsrc.get(jobId), jobId, mapId, reduceId, spillNum); //last parameter added by pratik
+	    	          currentSpills.put(mapId, ++spillNum);
+	    	          if (null == lastMap) {
+	    	        	//pratik; seems this mapper ended.only close this stream; leave others going
+	    	        	iter.remove();
+	    	        	LOG.info("Mapper "+mapId+ " ended. continuing with remaining ones.");
+	    	        	System.out.println("pratik----------Mapper "+mapId+ " ended. continuing with remaining ones.");
+	    	            continue;
+	    	          }
+	    	          lastMap.addListener(metrics);
+	    	        } catch (IOException e) {
+    		          LOG.error("Shuffle error :", e);
+    		          StringBuffer sb = new StringBuffer(e.getMessage());
+    		          Throwable t = e;
+    		          while (t.getCause() != null) {
+    		            sb.append(t.getCause().getMessage());
+    		            t = t.getCause();
+    		          }
+    		          //pratik;seems like some error occured. only close this stream; leave others going
+	  	        	  LOG.info("Error occured in Mapper "+mapId+ ". ended it. continuing with remaining ones.");
+    	        	  System.out.println("pratik----------error occured in Mapper "+mapId+ ". ended it. continuing with remaining ones.");
+    		          iter.remove();
+    		          continue;
+	    		        
+	    	        }
+	    	  }
+	      /*for (String mapId : mapIds) {
 	        try {
 	          lastMap =
 	            sendMapOutput(ctx, ch, userRsrc.get(jobId), jobId, mapId, reduceId, firstTime); //last parameter added by pratik
 	          if (null == lastMap) {
-	            sendError(ctx, NOT_FOUND);
-	            return;
+	        	  //pratik; only close this stream; leave others going
+	        	mapIds.remove(mapId);
+	        	if(mapIds.isEmpty()){
+	        		sendError(ctx, NOT_FOUND);
+	        		return;
+	        	}
+	            //sendError(ctx, NOT_FOUND);
+	            //return;
+	            continue;
 	          }
 	        } catch (IOException e) {
 	          LOG.error("Shuffle error :", e);
@@ -527,11 +580,16 @@ public class ShuffleHandler extends AuxiliaryService {
 	            sb.append(t.getCause().getMessage());
 	            t = t.getCause();
 	          }
-	          sendError(ctx,sb.toString() , INTERNAL_SERVER_ERROR);
-	          return;
+	          //pratik; only close this stream; leave others going
+	          mapIds.remove(mapId);
+	          if(mapIds.isEmpty()){
+	        	sendError(ctx,sb.toString() , INTERNAL_SERVER_ERROR);
+	        	return;
+	          }
+	          continue;
 	        }
 	      }
-	      lastMap.addListener(metrics);
+	      lastMap.addListener(metrics);*/
 //	      lastMap.addListener(ChannelFutureListener.CLOSE);
       }
       
@@ -579,7 +637,7 @@ public class ShuffleHandler extends AuxiliaryService {
     }
 
     protected ChannelFuture sendMapOutput(ChannelHandlerContext ctx, Channel ch,
-        String user, String jobId, String mapId, int reduce, boolean firstTime)
+        String user, String jobId, String mapId, int reduce, int mapSpillNum)
         throws IOException {
       // TODO replace w/ rsrc alloc
       // $x/$user/appcache/$appId/output/$mapId
@@ -594,16 +652,16 @@ public class ShuffleHandler extends AuxiliaryService {
       if (LOG.isDebugEnabled()) {
         LOG.debug("DEBUG0 " + base);
       }
-      
     //Pratik was here ! ;)
       int counter = 0;
-      //wait max 2 sec for the file to be available. 
-      while(!lDirAlloc.ifExists(base + "/file.out.index" , conf)){
+      //wait max 10 sec for the file to be available. 
+      while(!lDirAlloc.ifExists(base + "/file_"+mapSpillNum+".out.index" , conf)){
     	  try {
     		  counter++;
 			Thread.sleep(100);
-			if(counter>20){
-				LOG.info("waited too long to send spill file of mapid"+mapId);
+			if(counter>600){
+				LOG.info("waited too long..1 min to send spill file of mapid"+mapId);
+				signalMapperDied(ch,mapId,reduce);
 				return null;
 			}
     	  } catch (InterruptedException e) {	
@@ -612,81 +670,94 @@ public class ShuffleHandler extends AuxiliaryService {
       }
 	  // Index file
 	  Path indexFileName = lDirAlloc.getLocalPathToRead(
-			  base + "/file.out.index", conf);
+			  base + "/file_"+mapSpillNum+".out.index", conf);
 	  // Map-output file
 	  Path mapOutputFileName = lDirAlloc.getLocalPathToRead(
-			  base + "/file.out", conf);    	  
-      //pratik done
-      
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("DEBUG1 " + base + " : " + mapOutputFileName + " : "
-            + indexFileName);
-      }
-      LOG.info("DEBUG1 " + base + " : " + mapOutputFileName + " : "
-              + indexFileName);
-      final IndexRecord info = 
-        indexCache.getIndexInformation(mapId, reduce, indexFileName, user);
-      final ShuffleHeader header =
-        new ShuffleHeader(mapId, info.partLength, info.rawLength, reduce);
-      final DataOutputBuffer dob = new DataOutputBuffer();
-      header.write(dob);
-      ch.write(wrappedBuffer(dob.getData(), 0, dob.getLength()));
+			  base + "/file_"+mapSpillNum+".out", conf);    	  
+	  //pratik done
+	  
+	  if (LOG.isDebugEnabled()) {
+		  LOG.debug("DEBUG1 " + base + " : " + mapOutputFileName + " : "
+				  + indexFileName);
+	  }
+	  LOG.info("DEBUG1 " + base + " : " + mapOutputFileName + " : "
+			  + indexFileName);
+	  final IndexRecord info = 
+			  indexCache.getIndexInformation(mapId, reduce, indexFileName, user);
+	  final ShuffleHeader header =
+			  new ShuffleHeader(mapId, info.partLength, info.rawLength, reduce);
+	  final DataOutputBuffer dob = new DataOutputBuffer();
+	  header.write(dob);
+	  ch.write(wrappedBuffer(dob.getData(), 0, dob.getLength()));
 //      final File spillfile = new File(mapOutputFileName.toString());
-      final File spillfile = new File(mapOutputFileName.toString());
-      final File spillIndexfile = new File(indexFileName.toString());
-      RandomAccessFile spill;
-      try {
-        spill = SecureIOUtils.openForRandomRead(spillfile, "r", user, null);
-      } catch (FileNotFoundException e) {
-        LOG.info(spillfile + " not found");
-        return null;
-      }
-      ChannelFuture writeFuture;
-      if (ch.getPipeline().get(SslHandler.class) == null) {
-        final FadvisedFileRegion partition = new FadvisedFileRegion(spill,
-            info.startOffset, info.partLength, manageOsCache, readaheadLength,
-            readaheadPool, spillfile.getAbsolutePath());
-        writeFuture = ch.write(partition);
-        writeFuture.addListener(new ChannelFutureListener() {
-            // TODO error handling; distinguish IO/connection failures,
-            //      attribute to appropriate spill output
-          @Override
-          public void operationComplete(ChannelFuture future) {
-            if (future.isSuccess()) {
-              partition.transferSuccessful();
-              //pratik was here too
-              boolean result =  spillfile.delete();
-              if(spillIndexfile.exists())
-            	  spillIndexfile.delete();
-              LOG.info(spillfile + " deleted = " + result);
-              //pratik done
-            }
-            partition.releaseExternalResources();
-          }
-        });
-      } else {
-        // HTTPS cannot be done with zero copy.
-        final FadvisedChunkedFile chunk = new FadvisedChunkedFile(spill,
-            info.startOffset, info.partLength, sslFileBufferSize,
-            manageOsCache, readaheadLength, readaheadPool,
-            spillfile.getAbsolutePath());
-        writeFuture = ch.write(chunk);
-        //pratik code:
-        writeFuture.addListener(new ChannelFutureListener() {
-			
-			@Override
-			public void operationComplete(ChannelFuture future) throws Exception {
-				// TODO Auto-generated method stub
-				boolean result =  spillfile.delete();
-	              LOG.info(spillfile + " deleted(FadvisedChunkedFile) = " + result);
-			}
-		});
-      }
-      metrics.shuffleConnections.incr();
-      metrics.shuffleOutputBytes.incr(info.partLength); // optimistic
-      return writeFuture;
+	  final File spillfile = new File(mapOutputFileName.toString());
+	  final File spillIndexfile = new File(indexFileName.toString());
+	  RandomAccessFile spill;
+	  try {
+		  spill = SecureIOUtils.openForRandomRead(spillfile, "r", user, null);
+	  } catch (FileNotFoundException e) {
+		  //Pratik: the exact reason why this would be handled this way remains unknown.
+		  LOG.info(spillfile + " not found");
+		  signalMapperDied(ch,mapId,reduce);
+		  return null;
+	  }
+	  ChannelFuture writeFuture;
+	  if (ch.getPipeline().get(SslHandler.class) == null) {
+		  final FadvisedFileRegion partition = new FadvisedFileRegion(spill,
+				  info.startOffset, info.partLength, manageOsCache, readaheadLength,
+				  readaheadPool, spillfile.getAbsolutePath());
+		  writeFuture = ch.write(partition);
+		  writeFuture.addListener(new ChannelFutureListener() {
+			  // TODO error handling; distinguish IO/connection failures,
+			  //      attribute to appropriate spill output
+			  @Override
+			  public void operationComplete(ChannelFuture future) {
+				  if (future.isSuccess()) {
+					  partition.transferSuccessful();
+					  //pratik was here too
+					  //now done at the sortAndSpill()
+					 /* boolean result =  spillfile.delete();
+					  if(spillIndexfile.exists())
+						  spillIndexfile.delete();
+					  LOG.info(spillfile + " deleted = " + result);*/
+					  //pratik done
+				  }
+				  partition.releaseExternalResources();
+			  }
+		  });
+	  } else {
+		  // HTTPS cannot be done with zero copy.
+		  final FadvisedChunkedFile chunk = new FadvisedChunkedFile(spill,
+				  info.startOffset, info.partLength, sslFileBufferSize,
+				  manageOsCache, readaheadLength, readaheadPool,
+				  spillfile.getAbsolutePath());
+		  writeFuture = ch.write(chunk);
+		  //pratik code:
+		  writeFuture.addListener(new ChannelFutureListener() {
+			  
+			  @Override
+			  public void operationComplete(ChannelFuture future) throws Exception {
+				  // TODO Auto-generated method stub
+				  boolean result =  spillfile.delete();
+				  LOG.info(spillfile + " deleted(FadvisedChunkedFile) = " + result);
+			  }
+		  });
+	  }
+	  metrics.shuffleConnections.incr();
+	  metrics.shuffleOutputBytes.incr(info.partLength); // optimistic
+	  return writeFuture;
+      
     }
-
+    protected void signalMapperDied(Channel ch, String mapId, int reduce) throws IOException{
+    	//since i did not get the index file for long time, am assuming the mapper died.
+  	  //so sharing this information with reducer.
+  	  //i will tell reducer that the length of data=0, reducer should understand this as a signal that mapper died.
+  	  final ShuffleHeader header =
+  			  new ShuffleHeader(mapId, 0, 0, reduce); //0 0 here signifies that mapper died.
+  	  final DataOutputBuffer dob = new DataOutputBuffer();
+  	  header.write(dob);
+  	  ch.write(wrappedBuffer(dob.getData(), 0, dob.getLength()));
+    }
     protected void sendError(ChannelHandlerContext ctx,
         HttpResponseStatus status) {
       sendError(ctx, "", status);

@@ -130,7 +130,7 @@ public class ReduceTask<INKEY,INVALUE,OUTKEY,OUTVALUE> extends Task {
   
   //pratik
   org.apache.hadoop.mapreduce.Reducer<INKEY,INVALUE,OUTKEY,OUTVALUE> reducer = null;
-  org.apache.hadoop.mapreduce.RecordWriter<OUTKEY,OUTVALUE> trackedRW = null;
+//  org.apache.hadoop.mapreduce.RecordWriter<OUTKEY,OUTVALUE> trackedRW = null;
 
   
   public ReduceTask() {
@@ -409,7 +409,7 @@ public class ReduceTask<INKEY,INVALUE,OUTKEY,OUTVALUE> extends Task {
  //   		break;
     	}*/
   //  }
-    trackedRW.close(null); // original requires rducerContext, but never uses it. So null is just fine.
+//    trackedRW.close(null); // original requires rducerContext, but never uses it. So null is just fine.
     shuffleConsumerPlugin.close();
     done(umbilical, reporter);
   }
@@ -625,8 +625,8 @@ public class ReduceTask<INKEY,INVALUE,OUTKEY,OUTVALUE> extends Task {
 	    reducer =
 	      (org.apache.hadoop.mapreduce.Reducer<INKEY,INVALUE,OUTKEY,OUTVALUE>)
 	        ReflectionUtils.newInstance(taskContext.getReducerClass(), job);
-	    trackedRW = 
-	      new NewTrackingRecordWriter<OUTKEY, OUTVALUE>(this, taskContext);
+//	    trackedRW = 
+//	      new NewTrackingRecordWriter<OUTKEY, OUTVALUE>(this, taskContext);
 	    job.setBoolean("mapred.skip.on", isSkipping());
 	    job.setBoolean(JobContext.SKIP_RECORDS, isSkipping());
   }
@@ -673,10 +673,10 @@ public class ReduceTask<INKEY,INVALUE,OUTKEY,OUTVALUE> extends Task {
     org.apache.hadoop.mapreduce.Reducer<INKEY,INVALUE,OUTKEY,OUTVALUE> reducer =
       (org.apache.hadoop.mapreduce.Reducer<INKEY,INVALUE,OUTKEY,OUTVALUE>)
         ReflectionUtils.newInstance(taskContext.getReducerClass(), job);
-    org.apache.hadoop.mapreduce.RecordWriter<OUTKEY,OUTVALUE> trackedRW = 
-      new NewTrackingRecordWriter<OUTKEY, OUTVALUE>(this, taskContext);
     job.setBoolean("mapred.skip.on", isSkipping());
     job.setBoolean(JobContext.SKIP_RECORDS, isSkipping());*/
+    org.apache.hadoop.mapreduce.RecordWriter<OUTKEY,OUTVALUE> trackedRW = 
+    		new NewTrackingRecordWriter<OUTKEY, OUTVALUE>(this, taskContext);
     org.apache.hadoop.mapreduce.Reducer.Context 
          reducerContext = createReduceContext(reducer, job, getTaskID(),
                                                rIter, reduceInputKeyCounter, 
@@ -688,7 +688,16 @@ public class ReduceTask<INKEY,INVALUE,OUTKEY,OUTVALUE> extends Task {
     try {
       reducer.run(reducerContext);
     } finally {
-//      trackedRW.close(reducerContext);
+      trackedRW.close(reducerContext);
+
+      try{
+      Path filePath = ((org.apache.hadoop.mapreduce.lib.output.FileOutputFormat) outputFormat).getDefaultWorkFile(reducerContext, "");
+      LOG.info("Vandit. renaming: "+filePath);
+      FileSystem fs = filePath.getFileSystem(conf);
+      fs.rename(filePath, new Path(filePath.toString()+"_"+System.currentTimeMillis()));
+      }catch(Exception e){
+    	  LOG.info("error while renaming file"+e.getMessage());
+      }
     }
   }
   

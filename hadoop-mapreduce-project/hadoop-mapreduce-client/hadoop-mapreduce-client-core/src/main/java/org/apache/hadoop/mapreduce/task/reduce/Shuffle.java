@@ -195,27 +195,37 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
 //    for (Fetcher<K,V> fetcher : fetchers) {
     	while(true){
     		RawKeyValueIterator iter = null;
-    		Log.info("vandit. Shuffle Waiting for Map output");
+    		//Log.info("vandit. Shuffle Waiting for Map output");
  /*   		synchronized (fetcher){
     			fetcher.setMapOutput(null);
     			fetcher.wait();
     			iter = fetcher.getMapOutput();
     			
     		}*/
-    		Thread.sleep(1*60*1000/6); // sleep for 10 sec to get output 
-    		iter = merger.startStreamingMerger();
-    		Log.info("vandit. Shuffle Got Map output");
-    		if(iter == null)
-    			break;
-    		ReduceTask rTask = (ReduceTask)reduceTask;
-    		try {
-				rTask.runIter(jobConf,(TaskReporter)reporter,iter);
-			} catch (Exception e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-				Log.info("error occured when performing reduce.Ending the Shuffle.");
-				break;
-			}
+    		if(merger.hasInMemoryMapOutputs()){
+	    		Thread.sleep(1*60*1000/6); // sleep for 10 sec to get output 
+	    		iter = merger.startStreamingMerger();
+	    		Log.info("vandit. Shuffle Got Map output");
+	    		if(iter == null)
+	    			break;
+	    		ReduceTask rTask = (ReduceTask)reduceTask;
+	    		try {
+					rTask.runIter(jobConf,(TaskReporter)reporter,iter);
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+					Log.info("error occured when performing reduce.Ending the Shuffle.");
+					break;
+				}
+    		}
+    		else{
+    			Thread.sleep(5*1000); // Vandit. Waiting for 5 secs for map started events.
+    			String[] remainingMaps = scheduler.getRemainingMaps();
+    			if(null == remainingMaps || remainingMaps.length == 0){
+    				Log.info("Vandit. No Maps remaining. Chill out.");
+    				break;
+    			}
+    		}
     	}
     	
 //      }

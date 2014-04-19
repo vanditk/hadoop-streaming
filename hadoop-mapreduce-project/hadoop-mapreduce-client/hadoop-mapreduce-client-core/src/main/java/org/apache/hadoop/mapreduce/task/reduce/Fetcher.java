@@ -398,21 +398,25 @@ class Fetcher<K,V> extends Thread {
       } catch (IllegalArgumentException e) {
         badIdErrs.increment(1);
         LOG.warn("Invalid map id ", e);
-       /* while(this.rIter!=null){}
+       /* while(this.rIter!=null){} old code. without window
         synchronized (this) {
         	notify();
 		}*/
-        //pratik: mostly it came here means that shuffleHandler sent 404 for this mapId.
-        //this will only happen when the mapper died or finished.
-        //so remove this mapId.
-        // Pratik bhai..idhar dekho bhai.. ek hi mapper hai.
-//        remaining.clear();
-        remaining.remove(mapId); 
+        //pratik: mostly it came here means that 
+        //this will only happen when all the mappers died or finished.
+        remaining.clear();
         //Don't know which one was bad, so consider all of them as bad
         //return remaining.toArray(new TaskAttemptID[remaining.size()]);
         return null;
       }
 
+      //pratik: my own sanity check first
+      if(compressedLength == 0 && decompressedLength == 0){
+    	  //This is a signal that the mapper died.
+    	  LOG.info("pratik: MapTask:"+mapId+" died. zero length reply received.");
+    	  remaining.remove(mapId);
+    	  return null;
+      }
  
       // Do some basic sanity verification
       if (!verifySanity(compressedLength, decompressedLength, forReduce,
@@ -461,7 +465,7 @@ class Fetcher<K,V> extends Thread {
       long endTime = System.currentTimeMillis();
       // Inform the shuffle scheduler
       mapOutput.commit();
-      /*while(this.rIter!=null){}
+      /*while(this.rIter!=null){} old windowless code
       this.rIter = mapOutput.commit();
       LOG.info("vandit. Fetcher going to notify");
       synchronized (this){
@@ -483,8 +487,12 @@ class Fetcher<K,V> extends Thread {
                  mapId + " decomp: " + 
                  decompressedLength + ", " + compressedLength, ioe);
         //pratik: am hacking the error to think that this ends the reducer taking spills... forcefully end the copyFromHost here.
-//        remaining.clear();
-        remaining.remove(mapId);
+        LOG.info("vandit. Exception caught.");
+        if(mapId == null) {
+        	remaining.clear();
+        }else{
+        	remaining.remove(mapId);          	
+        }
         //following will start the waiting shuffle thread and rIter = null will tell shuffle to end 
         /*while(this.rIter!=null){}        
         LOG.info("vandit. Fetcher going to notify. Inside catch");
@@ -493,7 +501,6 @@ class Fetcher<K,V> extends Thread {
       	  notify();
       	
         }*/
-        LOG.info("vandit. Exception caught.");
         return null;
         /*if(mapId == null) {
           return remaining.toArray(new TaskAttemptID[remaining.size()]);
