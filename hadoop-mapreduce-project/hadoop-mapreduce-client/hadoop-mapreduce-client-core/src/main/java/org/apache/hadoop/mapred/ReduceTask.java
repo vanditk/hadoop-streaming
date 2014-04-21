@@ -690,14 +690,14 @@ public class ReduceTask<INKEY,INVALUE,OUTKEY,OUTVALUE> extends Task {
     } finally {
       trackedRW.close(reducerContext);
 
-      try{
-      Path filePath = ((org.apache.hadoop.mapreduce.lib.output.FileOutputFormat) outputFormat).getDefaultWorkFile(reducerContext, "");
-      LOG.info("Vandit. renaming: "+filePath);
-      FileSystem fs = filePath.getFileSystem(conf);
-      fs.rename(filePath, new Path(filePath.toString()+"_"+System.currentTimeMillis()));
-      }catch(Exception e){
-    	  LOG.info("error while renaming file"+e.getMessage());
-      }
+//      try{
+//      Path filePath = ((org.apache.hadoop.mapreduce.lib.output.FileOutputFormat) outputFormat).getDefaultWorkFile(reducerContext, "");
+//      LOG.info("Vandit. renaming: "+filePath);
+//      FileSystem fs = filePath.getFileSystem(conf);
+//      fs.rename(filePath, new Path(filePath.toString()+"_"+System.currentTimeMillis()));
+//      }catch(Exception e){
+//    	  LOG.info("error while renaming file"+e.getMessage());
+//      }
     }
   }
   

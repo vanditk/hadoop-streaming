@@ -130,16 +130,16 @@ public class TextOutputFormat<K, V> extends FileOutputFormat<K, V> {
     FileSystem fs = file.getFileSystem(conf);
     if (!isCompressed) {
     	FSDataOutputStream fileOut;
-    	if(fs.exists(file))
-    		fileOut = fs.append(file);
-    	else
+//    	if(fs.exists(file))
+//    		fileOut = fs.append(file);
+//    	else
     		fileOut = fs.create(file, false);
       return new LineRecordWriter<K, V>(fileOut, keyValueSeparator);
     } else {
     	FSDataOutputStream fileOut;
-    	if(fs.exists(file))
-    		fileOut = fs.append(file);
-    	else
+//    	if(fs.exists(file))
+//    		fileOut = fs.append(file);
+//    	else
     		fileOut = fs.create(file, false);
       return new LineRecordWriter<K, V>(new DataOutputStream
                                         (codec.createOutputStream(fileOut)),

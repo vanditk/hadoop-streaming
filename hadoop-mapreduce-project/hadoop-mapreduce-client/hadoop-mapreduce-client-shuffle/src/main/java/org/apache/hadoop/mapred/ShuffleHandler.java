@@ -659,7 +659,7 @@ public class ShuffleHandler extends AuxiliaryService {
     	  try {
     		  counter++;
 			Thread.sleep(100);
-			if(counter>600){
+			if(counter>100){
 				LOG.info("waited too long..1 min to send spill file of mapid"+mapId);
 				signalMapperDied(ch,mapId,reduce);
 				return null;

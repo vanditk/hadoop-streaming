@@ -120,7 +120,7 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
   private TaskStatus taskStatus;
   private Task reduceTask; //Used for status updates
   private Map<TaskAttemptID, MapOutputFile> localMapFiles;
-
+  private int windowPeriod=10;// seconds
   @Override
   public void init(ShuffleConsumerPlugin.Context context) {
     this.context = context;
@@ -140,6 +140,7 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
         context.getReduceShuffleBytes(), context.getFailedShuffleCounter());
     merger = createMergeManager(context);
        
+    this.windowPeriod=this.jobConf.getInt("mapred.streaming.window.period.sec.", 10);
   }
   
   protected MergeManager<K, V> createMergeManager(
@@ -172,10 +173,10 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
     
     // Start the map-output fetcher threads
     boolean isLocal = localMapFiles != null;
-//    final int numFetchers = isLocal ? 1 :
-//      jobConf.getInt(MRJobConfig.SHUFFLE_PARALLEL_COPIES, 5);
+    final int numFetchers = isLocal ? 1 :
+      jobConf.getInt(MRJobConfig.SHUFFLE_PARALLEL_COPIES, 5);
     //pratik:
-    final int numFetchers =1;
+//    final int numFetchers =1;
     Fetcher<K,V>[] fetchers = new Fetcher[numFetchers];
     if (isLocal) {
       fetchers[0] = new LocalFetcher<K, V>(jobConf, reduceId, scheduler,
@@ -193,6 +194,8 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
     //pratik 
     System.out.println("vandit. starting fetchers.");
 //    for (Fetcher<K,V> fetcher : fetchers) {
+    long startTime=0,endTime=0;
+    int execTimeSec=0;
     	while(true){
     		RawKeyValueIterator iter = null;
     		//Log.info("vandit. Shuffle Waiting for Map output");
@@ -202,10 +205,13 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
     			iter = fetcher.getMapOutput();
     			
     		}*/
+    		Log.info("vandit... sleeping for windowPeriod:"+windowPeriod);
+    		Thread.sleep(1*windowPeriod*1000 - execTimeSec); // sleep for 10 sec to get output
     		if(merger.hasInMemoryMapOutputs()){
-	    		Thread.sleep(1*60*1000/6); // sleep for 10 sec to get output 
+    			startTime = System.currentTimeMillis();
+	    		Log.info("vandit... start merge");
 	    		iter = merger.startStreamingMerger();
-	    		Log.info("vandit. Shuffle Got Map output");
+	    		Log.info("vandit... Shuffle Got Map output");
 	    		if(iter == null)
 	    			break;
 	    		ReduceTask rTask = (ReduceTask)reduceTask;
@@ -217,6 +223,9 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
 					Log.info("error occured when performing reduce.Ending the Shuffle.");
 					break;
 				}
+	    		endTime = System.currentTimeMillis();
+	    		execTimeSec =(int) (endTime-startTime);
+	    		Log.info("vandit... end window.Time consumed:"+execTimeSec+" sec.");
     		}
     		else{
     			Thread.sleep(5*1000); // Vandit. Waiting for 5 secs for map started events.
@@ -225,46 +234,12 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
     				Log.info("Vandit. No Maps remaining. Chill out.");
     				break;
     			}
+    			execTimeSec=0;
     		}
     	}
     	
 //      }
-  //pratik : these all need to go for now
-    /*    
-    // Wait for shuffle to complete successfully
-    while (!scheduler.waitUntilDone(PROGRESS_FREQUENCY)) {
-      reporter.progress();
-      
-      synchronized (this) {
-        if (throwable != null) {
-          throw new ShuffleError("error in shuffle in " + throwingThreadName,
-                                 throwable);
-        }
-      }
-    }
-    // Stop the event-fetcher thread
-    eventFetcher.shutDown();
-    
-    // Stop the map-output fetcher threads
-    for (Fetcher<K,V> fetcher : fetchers) {
-      fetcher.shutDown();
-    }
-    
-    // stop the scheduler
-    scheduler.close();
 
-    copyPhase.complete(); // copy is already complete
-    taskStatus.setPhase(TaskStatus.Phase.SORT);
-    reduceTask.statusUpdate(umbilical);
-
-    // Finish the on-going merges...
-    RawKeyValueIterator kvIter = null;
-    try {
-      kvIter = merger.close();
-    } catch (Throwable e) {
-      throw new ShuffleError("Error while doing final merge " , e);
-    }
-*/
     // Sanity check
     synchronized (this) {
       if (throwable != null) {

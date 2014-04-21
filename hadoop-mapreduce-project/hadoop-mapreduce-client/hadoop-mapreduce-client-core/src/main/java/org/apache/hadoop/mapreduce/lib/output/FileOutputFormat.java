@@ -288,7 +288,7 @@ public static final String OUTDIR = "mapreduce.output.fileoutputformat.outputdir
 //    		committer.getCommittedTaskPath(context),
     		getOutputPath(context),
     		getUniqueFile(context, 
-      getOutputName(context), extension));
+      getOutputName(context), extension) +"_"+System.currentTimeMillis());
   }
 
   /**

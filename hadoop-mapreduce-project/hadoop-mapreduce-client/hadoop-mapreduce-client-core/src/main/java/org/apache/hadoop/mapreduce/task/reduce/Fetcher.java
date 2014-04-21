@@ -164,6 +164,10 @@ class Fetcher<K,V> extends Thread {
 
           // Get a host to shuffle from
           host = scheduler.getHost();
+          if(null==host){
+        	  LOG.info("ALL hosts assigned.");
+        	  return;
+          }
           metrics.threadBusy();
 
           // Shuffle

@@ -424,6 +424,8 @@ public String[] getRemainingMaps(){
         wait();
       }
 
+	  if(pendingHosts.size()<=0) //other fetchers took the host, by the time i come all hosts are taken, so need for me.
+		  return null;
       MapHost host = null;
       Iterator<MapHost> iter = pendingHosts.iterator();
       int numToPick = random.nextInt(pendingHosts.size());
