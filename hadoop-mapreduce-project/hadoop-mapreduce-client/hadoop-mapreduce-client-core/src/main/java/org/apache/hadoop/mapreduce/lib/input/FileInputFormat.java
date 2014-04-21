@@ -19,6 +19,7 @@
 package org.apache.hadoop.mapreduce.lib.input;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -249,10 +250,11 @@ public abstract class FileInputFormat<K, V> extends InputFormat<K, V> {
       filters.add(jobFilter);
     }
     PathFilter inputFilter = new MultiPathFilter(filters);
-    
+    Configuration conf = job.getConfiguration();
     for (int i=0; i < dirs.length; ++i) {
       Path p = dirs[i];
-      FileSystem fs = p.getFileSystem(job.getConfiguration()); 
+      //FileSystem fs = p.getFileSystem(job.getConfiguration()); 
+      FileSystem fs = getLocalFileSystem(conf);
       FileStatus[] matches = fs.globStatus(p, inputFilter);
       if (matches == null) {
         errors.add(new IOException("Input path does not exist: " + p));
@@ -346,8 +348,10 @@ public abstract class FileInputFormat<K, V> extends InputFormat<K, V> {
         if (file instanceof LocatedFileStatus) {
           blkLocations = ((LocatedFileStatus) file).getBlockLocations();
         } else {
-          FileSystem fs = path.getFileSystem(job.getConfiguration());
-          blkLocations = fs.getFileBlockLocations(file, 0, length);
+          //FileSystem fs = path.getFileSystem(job.getConfiguration());
+        	Configuration conf = job.getConfiguration();
+        	FileSystem fs = getLocalFileSystem(conf);
+        	blkLocations = fs.getFileBlockLocations(file, 0, length);
         }
         if (isSplitable(job, path)) {
           long blockSize = file.getBlockSize();
@@ -443,16 +447,26 @@ public abstract class FileInputFormat<K, V> extends InputFormat<K, V> {
   public static void setInputPaths(Job job, 
                                    Path... inputPaths) throws IOException {
     Configuration conf = job.getConfiguration();
-    Path path = inputPaths[0].getFileSystem(conf).makeQualified(inputPaths[0]);
+    FileSystem fs = getLocalFileSystem(conf);
+    Path path = fs.makeQualified(inputPaths[0]);
+    
+    //Path path = inputPaths[0].getFileSystem(conf).makeQualified(inputPaths[0]);
     StringBuffer str = new StringBuffer(StringUtils.escapeString(path.toString()));
     for(int i = 1; i < inputPaths.length;i++) {
       str.append(StringUtils.COMMA_STR);
-      path = inputPaths[i].getFileSystem(conf).makeQualified(inputPaths[i]);
+      //path = inputPaths[i].getFileSystem(conf).makeQualified(inputPaths[i]);
+      path = fs.makeQualified(inputPaths[i]);
       str.append(StringUtils.escapeString(path.toString()));
     }
     conf.set(INPUT_DIR, str.toString());
   }
 
+  public static FileSystem getLocalFileSystem(Configuration conf) throws IOException{
+	  URI defaultURI = URI.create("file:///");
+	  // create RawLocalFileSystem !!. Vandit.
+	  return FileSystem.get(defaultURI,conf);
+	  
+  }
   /**
    * Add a {@link Path} to the list of inputs for the map-reduce job.
    * 
@@ -463,7 +477,10 @@ public abstract class FileInputFormat<K, V> extends InputFormat<K, V> {
   public static void addInputPath(Job job, 
                                   Path path) throws IOException {
     Configuration conf = job.getConfiguration();
-    path = path.getFileSystem(conf).makeQualified(path);
+    //vandit. fs
+    FileSystem fs = getLocalFileSystem(conf);
+    path = fs.makeQualified(path);
+    //----
     String dirStr = StringUtils.escapeString(path.toString());
     String dirs = conf.get(INPUT_DIR);
     conf.set(INPUT_DIR, dirs == null ? dirStr : dirs + "," + dirStr);
