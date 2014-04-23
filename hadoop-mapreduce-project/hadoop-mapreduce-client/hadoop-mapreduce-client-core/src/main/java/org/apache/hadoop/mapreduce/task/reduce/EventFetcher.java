@@ -68,9 +68,9 @@ class EventFetcher<K,V> extends Thread {
     try {
       while (!stopped && !Thread.currentThread().isInterrupted()) {
         try {
-          int numNewMaps = getMapCompletionEvents();
-          int numNewMapsStarted = getMapStartedEvents(mapsStarted);
           
+          int numNewMapsStarted = getMapStartedEvents(mapsStarted);
+          int numNewMaps = getMapCompletionEvents();
           failures = 0;
           if (numNewMaps > 0) {
             LOG.info(reduce + ": " + "Got " + numNewMaps + " new map-outputs");
@@ -132,7 +132,7 @@ class EventFetcher<K,V> extends Thread {
 			  newMaps++;
 		  }
 	  }
-	  System.out.println("Vandit. Got "+newMaps+" Map started Events");
+	  //System.out.println("Vandit. Got "+newMaps+" Map started Events");
 	  LOG.info("Vandit. Got "+newMaps+" Map started Events");
 	  return newMaps;
 	  
@@ -159,9 +159,10 @@ class EventFetcher<K,V> extends Thread {
                   (org.apache.hadoop.mapred.TaskAttemptID)reduce);
         */  
       events = update.getMapTaskCompletionEvents();
-      LOG.debug("Got " + events.length + " map completion events from " +
+      if(events.length >0){
+    	  LOG.info("Got " + events.length + " map completion events from " +
                fromEventIdx);
-
+      }
       assert !update.shouldReset() : "Unexpected legacy state";
 
       // Update the last seen event ID

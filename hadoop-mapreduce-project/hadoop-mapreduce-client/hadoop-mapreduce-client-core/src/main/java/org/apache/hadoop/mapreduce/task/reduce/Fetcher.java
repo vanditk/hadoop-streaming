@@ -480,7 +480,7 @@ class Fetcher<K,V> extends Thread {
                               endTime - startTime, mapOutput);
       // Note successful shuffle
       metrics.successFetch();
-      //following commented by pratik:
+      
       //remaining.remove(mapId);
       return null;
       
