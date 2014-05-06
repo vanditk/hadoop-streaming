@@ -115,7 +115,7 @@ public class ShuffleSchedulerImpl<K,V> implements ShuffleScheduler<K,V> {
                           Counters.Counter failedShuffleCounter) {
     totalMaps = job.getNumMapTasks();
     abortFailureLimit = Math.max(30, totalMaps / 10);
-    //vandit.
+    //vandit. added to track the remaining maps
     remainingMapIds = new ArrayList<String>();
     remainingMaps = totalMaps;
     finishedMaps = new boolean[remainingMaps];
@@ -139,24 +139,23 @@ public class ShuffleSchedulerImpl<K,V> implements ShuffleScheduler<K,V> {
         MRJobConfig.DEFAULT_MAX_SHUFFLE_FETCH_RETRY_DELAY);
   }
 
+  //Vandit. added to track the remaining maps
   @Override
   public void resolve(TaskStartedEventContent tsec) {
     
 	  URI u = getBaseURI(reduceId, tsec.getHostUrl());
-	  System.out.println("vandit. ShuffleScheduler.resolve. URI: "+u);
       addKnownMapOutput(u.getHost() + ":" + u.getPort(),
           u.toString(),
           tsec.getTaskAttemptId());
      addMapAttemptStarted(tsec.getTaskAttemptId());
   }
-  
+  //Vandit. added to track the remaining maps
   private void addMapAttemptStarted(
 		org.apache.hadoop.mapred.TaskAttemptID taskAttemptId) {
 	// TODO Auto-generated method stub
 	  synchronized (remainingMapIds) {
 		  remainingMapIds.add(taskAttemptId.toString());
 	}
-	  LOG.info("Vandit. Added to remainingMapids array: "+taskAttemptId.toString());
 	
 }
 
@@ -180,11 +179,12 @@ public String[] getRemainingMaps(){
           u.toString(),
           event.getTaskAttemptId());
       maxMapRuntime = Math.max(maxMapRuntime, event.getTaskRunTime());
+      // Vandit. Tracking remaining maps.
       synchronized (remainingMapIds) {
     	  removed = remainingMapIds.remove(event.getTaskAttemptId().toString());
     	  if(removed)
     	  {
-    		  LOG.info("Vandit. Removed from remainingMapIds. ID:"+event.getTaskAttemptId());
+    		  LOG.info("Removed from remainingMapIds. ID:"+event.getTaskAttemptId());
     		  
     	  }
 	}
@@ -389,7 +389,7 @@ public String[] getRemainingMaps(){
     if (host == null) {
       host = new MapHost(hostName, hostUrl);
       mapLocations.put(hostName, host);
-      System.out.println("vandit. Adding new MapHost: "+host);
+
     }
     host.addKnownMap(mapId);
     //pratik: Just let hosts be in mapLocations, till everyone has arrived,
@@ -419,12 +419,12 @@ public String[] getRemainingMaps(){
 
   public synchronized MapHost getHost() throws InterruptedException {
 //      while(pendingHosts.isEmpty()) {
-	  //pratik: no one starts before all mappers are up.
+	  //pratik: no one starts before all mappers are up. The entire structure of getHost() has now been reworked for streaming
 	  while(startedMaps < totalMaps){
         wait();
       }
 
-	  if(pendingHosts.size()<=0) //other fetchers took the host, by the time i come all hosts are taken, so need for me.
+	  if(pendingHosts.size()<=0) //pratik: other fetchers took the host, by the time i come all hosts are taken, so need for me.
 		  return null;
       MapHost host = null;
       Iterator<MapHost> iter = pendingHosts.iterator();

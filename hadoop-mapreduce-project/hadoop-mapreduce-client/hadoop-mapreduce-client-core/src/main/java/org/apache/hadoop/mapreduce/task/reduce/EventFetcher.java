@@ -68,7 +68,7 @@ class EventFetcher<K,V> extends Thread {
     try {
       while (!stopped && !Thread.currentThread().isInterrupted()) {
         try {
-          
+          // modified by Vandit.
           int numNewMapsStarted = getMapStartedEvents(mapsStarted);
           int numNewMaps = getMapCompletionEvents();
           failures = 0;
@@ -132,8 +132,7 @@ class EventFetcher<K,V> extends Thread {
 			  newMaps++;
 		  }
 	  }
-	  //System.out.println("Vandit. Got "+newMaps+" Map started Events");
-	  LOG.info("Vandit. Got "+newMaps+" Map started Events");
+	  //get map started events from MRAppMaster. Vandit.
 	  return newMaps;
 	  
   }

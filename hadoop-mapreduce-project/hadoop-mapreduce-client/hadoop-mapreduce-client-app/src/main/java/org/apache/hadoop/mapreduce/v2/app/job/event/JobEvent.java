@@ -45,13 +45,13 @@ public class JobEvent extends AbstractEvent<JobEventType> implements Writable {
 
 public void write(DataOutput out) throws IOException {
 	// TODO Auto-generated method stub
-	System.out.println("Vandit. JobEvent. write called");
+	System.out.println("JobEvent. write called");
 	
 }
 
 public void readFields(DataInput in) throws IOException {
 	// TODO Auto-generated method stub
-	System.out.println("Vandit. JobEvent. readFields called");
+	System.out.println("JobEvent. readFields called");
 	
 }
 

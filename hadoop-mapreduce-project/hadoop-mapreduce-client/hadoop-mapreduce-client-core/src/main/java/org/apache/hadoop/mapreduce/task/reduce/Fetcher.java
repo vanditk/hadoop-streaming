@@ -155,7 +155,7 @@ class Fetcher<K,V> extends Thread {
   
   public void run() {
     try {
-    	//pratik : 1 mapper - 1 reducer case need not have this while loop
+    	//Modification by Navya: 1 mapper - 1 reducer case need not have this while loop
 //      while (!stopped && !Thread.currentThread().isInterrupted()) {
         MapHost host = null;
         try {
@@ -185,7 +185,7 @@ class Fetcher<K,V> extends Thread {
       exceptionReporter.reportException(t);
     }
     finally{
-    	LOG.info("vandit. Fetcher run finished.");
+    	LOG.info("Fetcher run finished.");
     }
   }
 
@@ -406,7 +406,7 @@ class Fetcher<K,V> extends Thread {
         synchronized (this) {
         	notify();
 		}*/
-        //pratik: mostly it came here means that 
+        //modified by pratik: mostly it came here means that 
         //this will only happen when all the mappers died or finished.
         remaining.clear();
         //Don't know which one was bad, so consider all of them as bad
@@ -414,7 +414,7 @@ class Fetcher<K,V> extends Thread {
         return null;
       }
 
-      //pratik: my own sanity check first
+      //Modification by Navya: my own sanity check first
       if(compressedLength == 0 && decompressedLength == 0){
     	  //This is a signal that the mapper died.
     	  LOG.info("pratik: MapTask:"+mapId+" died. zero length reply received.");
@@ -469,12 +469,6 @@ class Fetcher<K,V> extends Thread {
       long endTime = System.currentTimeMillis();
       // Inform the shuffle scheduler
       mapOutput.commit();
-      /*while(this.rIter!=null){} old windowless code
-      this.rIter = mapOutput.commit();
-      LOG.info("vandit. Fetcher going to notify");
-      synchronized (this){
-    	  notify(); 
-      }*/
       
       scheduler.copySucceeded(mapId, host, compressedLength, 
                               endTime - startTime, mapOutput);
@@ -490,8 +484,6 @@ class Fetcher<K,V> extends Thread {
         LOG.info("fetcher#" + id + " failed to read map header" + 
                  mapId + " decomp: " + 
                  decompressedLength + ", " + compressedLength, ioe);
-        //pratik: am hacking the error to think that this ends the reducer taking spills... forcefully end the copyFromHost here.
-        LOG.info("vandit. Exception caught.");
         if(mapId == null) {
         	remaining.clear();
         }else{

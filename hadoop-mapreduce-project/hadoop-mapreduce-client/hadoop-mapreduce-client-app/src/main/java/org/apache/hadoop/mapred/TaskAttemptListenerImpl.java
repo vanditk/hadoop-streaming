@@ -311,9 +311,7 @@ public class TaskAttemptListenerImpl extends CompositeService
 		        
 		        */
 	  TaskStartedEventContent[] events = context.getJob(attemptID.getTaskId().getJobId()).getMapAttemptStartedEventHosts();
-	  /*for(TaskStartedEventContent eventTemp : events){
-		  LOG.info("vandit. getMapStartedEvents. Umbilical. Received event: "+eventTemp);
-	  }*/
+
 	  return events;
   }
 		  

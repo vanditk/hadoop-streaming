@@ -943,7 +943,7 @@ public class MapTask extends Task {
       partitions = job.getNumReduceTasks();
       rfs = ((LocalFileSystem)FileSystem.getLocal(job)).getRaw();
 
-      // vandit.
+      // vandit. added to have control over the spill size in terms of records.
       collectedRecordsCount = 0;
       spillCollectedRecordsLimit = job.getInt("map.spill.record.limit",2000);
       
@@ -1051,7 +1051,6 @@ public class MapTask extends Task {
     public synchronized void collect(K key, V value, final int partition
                                      ) throws IOException {
       reporter.progress();
-      //vandit
       collectedRecordsCount++;
       
       if (key.getClass() != keyClass) {
@@ -1070,7 +1069,7 @@ public class MapTask extends Task {
       }
       checkSpillException();
       bufferRemaining -= METASIZE;
-      //vandit.
+      // vandit. added to have control over the spill size in terms of records.
       if (collectedRecordsCount >= spillCollectedRecordsLimit || bufferRemaining <= 0) {
         // start spill if the thread is not running and the soft limit has been
         // reached
@@ -1094,7 +1093,6 @@ public class MapTask extends Task {
                     softLimit - bUsed) - METASIZE;
                 collectedRecordsCount = 0;
                 continue;
-                //vandit
               } else if (collectedRecordsCount >= spillCollectedRecordsLimit || (bufsoftlimit && kvindex != kvend)) {
                 // spill records, if any collected; check latter, as it may
                 // be possible for metadata alignment to hit spill pcnt
@@ -1492,7 +1490,7 @@ public class MapTask extends Task {
       }
       // release sort buffer before the merge
       kvbuffer = null;
-//      mergeParts(); pratik commented this
+//      mergeParts(); pratik commented this. we dont want the merging to go in iterations
 //      Path outputPath = mapOutputFile.getOutputFile();
 //      fileOutputByteCounter.increment(rfs.getFileStatus(new Path(outputPath.getParent(),"file_"+(numSpills-1)+".out")).getLen());
     }
@@ -1594,8 +1592,6 @@ public class MapTask extends Task {
             long segmentStart = out.getPos();
             writer = new Writer<K, V>(job, out, keyClass, valClass, codec,
                                       spilledRecordsCounter);
-            //TODO: pratik: create connection
-            //connection.connect();
             
             if (combinerRunner == null) {
               // spill directly
@@ -1608,13 +1604,10 @@ public class MapTask extends Task {
                 key.reset(kvbuffer, keystart, valstart - keystart);
                 getVBytesForOffset(kvoff, value);
                 writer.append(key, value);
-                //TODO: pratik: write to connection
-                //connection.write(key, value);
                 
                 ++spindex;
               }
             } else {
-            	//TODO: pratik: no combiner for me! throw exception here.
             	
             	
               int spstart = spindex;
@@ -1647,7 +1640,7 @@ public class MapTask extends Task {
             if (null != writer) writer.close();
           }
         }
-
+        //following part of the method completely re written by pratik:
         if (totalIndexCacheMemory >= indexCacheMemoryLimit) {
           // create spill index file
           Path indexFilename =
@@ -1662,7 +1655,7 @@ public class MapTask extends Task {
           LOG.info("File#"+numSpills+" index file written to cache.");
         }
         LOG.info("Finished spill " + numSpills);
-        //modified by pratik: can i now write to reducer?
+        //modified by pratik: can i now write to reducer? This is 1 mapper - 1 reducer system
         // this is half of max wait time in ShuffleHandler.
         /*if(!isFirstTime){
         	RawLocalFileSystem rfs = (RawLocalFileSystem)this.rfs;
@@ -1701,7 +1694,7 @@ public class MapTask extends Task {
         	}
         }
         
-        //garbage collection of old spills
+        //modified by pratik: garbage collection of old spills
     	int oldSpill = numSpills - 100;
     	if(oldSpill>=0){
     		RawLocalFileSystem rfs = (RawLocalFileSystem)this.rfs;
@@ -1719,7 +1712,7 @@ public class MapTask extends Task {
     		}catch(Exception ex){  	}    		
     	}
     	
-    	//take care of rollover
+    	//pratik:take care of rollover
         if(numSpills>1000000){
         	numSpills=0;
         }

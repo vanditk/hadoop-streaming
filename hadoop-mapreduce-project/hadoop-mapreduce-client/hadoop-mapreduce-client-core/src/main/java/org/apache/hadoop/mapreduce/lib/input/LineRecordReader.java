@@ -143,7 +143,7 @@ public class LineRecordReader extends RecordReader<LongWritable, Text> {
 		int counter = 0;
 		// We always read one extra line, which lies outside the upper
 		// split limit i.e. (end - 1)
-
+		// Navya. Modified for continuous mapper input.
 		while (in.needAdditionalRecordAfterSplit() || getFilePosition() <= end) {
 			do {
 				newSize = in.readLine(value, maxLineLength,
@@ -162,22 +162,13 @@ public class LineRecordReader extends RecordReader<LongWritable, Text> {
 	
 					} else {
 						//break;
-						System.out.println("Vandit. 5 seconds or more since last input.");
 						key = null;
 						value = null;
 						return false;
 						
 					}
 				}
-				/*
-				 * if (newSize < maxLineLength) { break; }
-				 */
-				// LOG.info("Navya rocks"+newSize);
-				// line too long. try again
-				/*
-				 * LOG.info("Skipped line of size " + newSize + " at pos " +
-				 * (pos - newSize));
-				 */
+				
 			} while (newSize == 0);
 			return true;
 		}
@@ -185,7 +176,6 @@ public class LineRecordReader extends RecordReader<LongWritable, Text> {
 		if (newSize == 0) {
 			key = null;
 			value = null;
-			System.out.println("Vandit. Kuch Bhi!");
 			return false;
 		} else {
 			return true;

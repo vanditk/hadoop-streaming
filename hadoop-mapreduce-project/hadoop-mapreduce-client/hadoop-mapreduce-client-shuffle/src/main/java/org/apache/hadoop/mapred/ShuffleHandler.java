@@ -442,7 +442,7 @@ public class ShuffleHandler extends AuxiliaryService {
       super.channelOpen(ctx, evt);
      
     }
-
+    //modified by pratik: the message received method will now live till eternity
     @Override
     public void messageReceived(ChannelHandlerContext ctx, MessageEvent evt)
         throws Exception {
@@ -514,11 +514,12 @@ public class ShuffleHandler extends AuxiliaryService {
 
       Channel ch = evt.getChannel();
       ch.write(response);
-      // TODO refactor the following into the pipeline
+      // pratik: refactor the following into the pipeline
       ChannelFuture lastMap = null;
       boolean firstTime = true;
+      //pratik: channel dont ever close please!
       while(ch.isOpen()){
-    	  	//are there any mappers who want to send data?
+    	  	//pratik: are there any mappers who want to send data?
 	    	  if(mapIds.isEmpty()){
 	      		sendError(ctx, NOT_FOUND);
 	      		LOG.info("All mappers died.");
@@ -557,6 +558,7 @@ public class ShuffleHandler extends AuxiliaryService {
 	    		        
 	    	        }
 	    	  }
+	    	  //pratik: naive way to handle failure. replaced above
 	      /*for (String mapId : mapIds) {
 	        try {
 	          lastMap =
@@ -652,7 +654,7 @@ public class ShuffleHandler extends AuxiliaryService {
       if (LOG.isDebugEnabled()) {
         LOG.debug("DEBUG0 " + base);
       }
-    //Pratik was here ! ;)
+    //Pratik was here ! ;)  following code completely reworked to lock the shuffleHandler with the spill file generaton
       int counter = 0;
       //wait max 10 sec for the file to be available. 
       while(!lDirAlloc.ifExists(base + "/file_"+mapSpillNum+".out.index" , conf)){
@@ -714,7 +716,7 @@ public class ShuffleHandler extends AuxiliaryService {
 			  public void operationComplete(ChannelFuture future) {
 				  if (future.isSuccess()) {
 					  partition.transferSuccessful();
-					  //pratik was here too
+					  //pratik was here too for single mapper case. this created a lot of dependency
 					  //now done at the sortAndSpill()
 					 /* boolean result =  spillfile.delete();
 					  if(spillIndexfile.exists())

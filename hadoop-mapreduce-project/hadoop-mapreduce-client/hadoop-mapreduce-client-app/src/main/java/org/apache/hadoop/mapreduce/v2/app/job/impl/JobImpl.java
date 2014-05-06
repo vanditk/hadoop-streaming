@@ -221,7 +221,7 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
   private List<Integer> taskCompletionIdxToMapCompletionIdx;
   private final List<String> diagnostics = new ArrayList<String>();
   
-  //vandit.
+  //added by vandit. to track map started events
   private List<JobCounterUpdateEvent> mapAttemptStartedEvents = new ArrayList<JobCounterUpdateEvent>();
   
   
@@ -813,6 +813,7 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
     }
   }
 
+  //Vandit. Added to fetch MapStartedEvents.
   @Override
   public JobCounterUpdateEvent[] getMapAttemptStartedEvents()
   {
@@ -820,14 +821,13 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
 	  readLock.lock();
 	  try {
 	      events = mapAttemptStartedEvents.toArray(events);
-	      LOG.info("vandit. getMapAttempStartedEvents. events: "+events);
 	      return events;
 	    }
 	  finally{
 		  readLock.unlock();
 	  }
   }
-  
+//Vandit. Added to fetch MapStartedEvents.
   @Override
   public TaskStartedEventContent[] getMapAttemptStartedEventHosts()
   {
@@ -842,14 +842,11 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
 	    	  tsec.setHostURL(jce.getTaskTrackerHttp());
 	    	  tsec.setTaskAttemptId(TypeConverter.fromYarn(jce.getAttemptId()));
 	    	  taskStartedEventContents.add(tsec);
-	    	  //LOG.info("vandit. getMapAttempStartedEvents. events: "+jce.getTaskTrackerHttp());
-	    	  //eventHosts.add(new UTF8(jce.getTaskTrackerHttp()));
 	      }
 
 	      //hosts= eventHosts.toArray(hosts);
 	      hosts = taskStartedEventContents.toArray(hosts);
 //	      mapAttemptStartedEvents.clear(); // maintain duplicates at reducer
-	      System.out.println("JobImpl. GetMapStartedEvents called.");
 		  return hosts;
 	    }
 	  finally{
@@ -2150,10 +2147,9 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
           .getCounterUpdates()) {
         job.jobCounters.findCounter(ci.getCounterKey()).increment(
           ci.getIncrementValue());
-        //System.out.println("Vandit. Printing jce. "+jce);
         if(JobCounter.TOTAL_LAUNCHED_MAPS == ci.getCounterKey()){
+        	// Vandit. tracking mapstartedevents.
         	job.mapAttemptStartedEvents.add(jce);
-        	LOG.info("vandit. added Counter Update event to the array");
         }
       }
     }

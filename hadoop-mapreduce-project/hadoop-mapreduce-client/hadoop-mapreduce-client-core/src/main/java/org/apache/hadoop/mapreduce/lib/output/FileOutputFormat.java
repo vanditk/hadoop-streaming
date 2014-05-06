@@ -281,11 +281,10 @@ public static final String OUTDIR = "mapreduce.output.fileoutputformat.outputdir
    */
   public Path getDefaultWorkFile(TaskAttemptContext context,
                                  String extension) throws IOException{
+	  //Navya. Modified for windowed output.
     FileOutputCommitter committer = 
       (FileOutputCommitter) getOutputCommitter(context);
     return new Path(
-//    		committer.getWorkPath(),		//pratik: no path _temporary/../../. store directly where committed ones go.
-//    		committer.getCommittedTaskPath(context),
     		getOutputPath(context),
     		getUniqueFile(context, 
       getOutputName(context), extension) +"_"+System.currentTimeMillis());

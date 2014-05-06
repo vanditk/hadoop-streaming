@@ -175,8 +175,8 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
     boolean isLocal = localMapFiles != null;
     final int numFetchers = isLocal ? 1 :
       jobConf.getInt(MRJobConfig.SHUFFLE_PARALLEL_COPIES, 5);
-    //pratik:
-//    final int numFetchers =1;
+    //Modification by Navya: we need only 1 fetcher for 1 mapper case:
+//    final int numFetchers =1; //commented by pratik: multiple mappers now possible!!
     Fetcher<K,V>[] fetchers = new Fetcher[numFetchers];
     if (isLocal) {
       fetchers[0] = new LocalFetcher<K, V>(jobConf, reduceId, scheduler,
@@ -191,27 +191,28 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
         fetchers[i].start();
       }
     }
-    //pratik 
-    System.out.println("vandit. starting fetchers.");
+    //pratik: time to get the windows in place 
 //    for (Fetcher<K,V> fetcher : fetchers) {
     long startTime=0,endTime=0;
     int execTimeSec=0;
     	while(true){
     		RawKeyValueIterator iter = null;
-    		//Log.info("vandit. Shuffle Waiting for Map output");
- /*   		synchronized (fetcher){
+    		//Log.info("navya. Shuffle Waiting for Map output");
+    		//Modification by Navya: need the lock for the solo fetcher
+ /*   		synchronized (fetcher){ //commented by pratik
     			fetcher.setMapOutput(null);
     			fetcher.wait();
     			iter = fetcher.getMapOutput();
     			
     		}*/
-    		Log.info("vandit... sleeping for windowPeriod:"+windowPeriod);
+    		Log.info("Sleeping for windowPeriod:"+windowPeriod);
     		Thread.sleep(1*windowPeriod*1000 - execTimeSec); // sleep for 10 sec to get output
     		if(merger.hasInMemoryMapOutputs()){
     			startTime = System.currentTimeMillis();
-	    		Log.info("vandit... start merge");
+	    		Log.info("start merge");
+	    		// Vandit. Start merger now!
 	    		iter = merger.startStreamingMerger();
-	    		Log.info("vandit... Shuffle Got Map output");
+	    		Log.info("Shuffle Got Map output");
 	    		if(iter == null)
 	    			break;
 	    		ReduceTask rTask = (ReduceTask)reduceTask;
@@ -225,13 +226,13 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
 				}
 	    		endTime = System.currentTimeMillis();
 	    		execTimeSec =(int) (endTime-startTime);
-	    		Log.info("vandit... end window.Time consumed:"+execTimeSec+" sec.");
+	    		Log.info("End window.Time consumed:"+execTimeSec+" sec.");
     		}
     		else{
     			Thread.sleep(5*1000); // Vandit. Waiting for 5 secs for map started events.
     			String[] remainingMaps = scheduler.getRemainingMaps();
     			if(null == remainingMaps || remainingMaps.length == 0){
-    				Log.info("Vandit. No Maps remaining. Chill out.");
+    				// Vandit. No More maps.
     				break;
     			}
     			execTimeSec=0;

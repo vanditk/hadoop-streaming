@@ -95,7 +95,7 @@ public interface Job {
   TaskCompletionEvent[]
       getMapAttemptCompletionEvents(int startIndex, int maxEvents);
 
-  // vandit.
+  // vandit. added for event handling.
   public JobCounterUpdateEvent[] getMapAttemptStartedEvents();
   public TaskStartedEventContent[] getMapAttemptStartedEventHosts();
   /**

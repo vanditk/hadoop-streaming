@@ -69,6 +69,6 @@ public interface MergeManager<K, V> {
   public RawKeyValueIterator close() throws Throwable;
   
   public RawKeyValueIterator startStreamingMerger();
-  //vandit
+  //vandit. added to check if the merger has any data to merge.
   public boolean hasInMemoryMapOutputs();
 }

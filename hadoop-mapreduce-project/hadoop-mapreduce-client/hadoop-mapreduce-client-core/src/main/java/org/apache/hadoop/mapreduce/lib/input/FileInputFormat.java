@@ -477,7 +477,7 @@ public abstract class FileInputFormat<K, V> extends InputFormat<K, V> {
   public static void addInputPath(Job job, 
                                   Path path) throws IOException {
     Configuration conf = job.getConfiguration();
-    //vandit. fs
+    //vandit. always search the local fs only. disabling hdfs
     FileSystem fs = getLocalFileSystem(conf);
     path = fs.makeQualified(path);
     //----

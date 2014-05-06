@@ -101,7 +101,7 @@ class IndexCache {
     throws IOException {
     IndexInformation info;
     IndexInformation newInd = new IndexInformation();
-    //pratik; need to turn off the cache so that old values are not sent
+    //modified by pratik; need to turn off the cache so that old values are not sent
  /*   if ((info = cache.putIfAbsent(mapId, newInd)) != null) {
       synchronized(info) {
         while (isUnderConstruction(info)) {

@@ -138,7 +138,7 @@ public class RMContainerAllocator extends RMContainerRequestor
   private int rackLocalAssigned = 0;
   private int lastCompletedTasks = 0;
   
-  private boolean recalculateReduceSchedule = true; // pratik. 
+  private boolean recalculateReduceSchedule = true; // modified by pratik: this helps start the reducer with the mapper 
   private int mapResourceReqt;//memory
   private int reduceResourceReqt;//memory
   
@@ -243,7 +243,7 @@ public class RMContainerAllocator extends RMContainerRequestor
           assignedRequests.maps.size(), assignedRequests.reduces.size(),
           mapResourceReqt, reduceResourceReqt,
           pendingReduces.size(), 
-          maxReduceRampupLimit, 0.0f); // pratik
+          maxReduceRampupLimit, 0.0f); // modified by pratik: setting 0.0f will basically make the threshold 0 and so reducer will start immediately.
       recalculateReduceSchedule = false;
     }
 

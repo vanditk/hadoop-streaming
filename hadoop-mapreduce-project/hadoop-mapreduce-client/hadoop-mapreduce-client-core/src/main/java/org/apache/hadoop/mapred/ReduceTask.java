@@ -69,7 +69,7 @@ public class ReduceTask<INKEY,INVALUE,OUTKEY,OUTVALUE> extends Task {
          public Writable newInstance() { return new ReduceTask(); }
        });
   }
-  //pratik
+  //modified by navya
   private static final Log LOG = LogFactory.getLog(ReduceTask.class.getName());
   private int numMaps;
 
@@ -128,7 +128,7 @@ public class ReduceTask<INKEY,INVALUE,OUTKEY,OUTVALUE> extends Task {
   private final SortedSet<FileStatus> mapOutputFilesOnDisk = 
       new TreeSet<FileStatus>(mapOutputFileComparator);
   
-  //pratik
+  //modification by Navya:
   org.apache.hadoop.mapreduce.Reducer<INKEY,INVALUE,OUTKEY,OUTVALUE> reducer = null;
 //  org.apache.hadoop.mapreduce.RecordWriter<OUTKEY,OUTVALUE> trackedRW = null;
 
@@ -377,24 +377,23 @@ public class ReduceTask<INKEY,INVALUE,OUTKEY,OUTVALUE> extends Task {
                   taskStatus, copyPhase, sortPhase, this,
                   mapOutputFile, localMapFiles);
     shuffleConsumerPlugin.init(shuffleContext);
-
-    //pratik moved following from runNewReducer
     setupReducer(job, reporter);
     
     rIter = shuffleConsumerPlugin.run();
 
-    LOG.info("vandit. ReduceTask.java ends");
+    
     // free up the data structures
     mapOutputFilesOnDisk.clear();
     
     sortPhase.complete();                         // sort is complete
     setPhase(TaskStatus.Phase.REDUCE); 
     statusUpdate(umbilical);
+    //pratik commented this for multiple reducer system
 /*    Class keyClass = job.getMapOutputKeyClass();
     Class valueClass = job.getMapOutputValueClass();
     RawComparator comparator = job.getOutputValueGroupingComparator();
 
-    //pratik put the while loop
+    //modification by Navya: put the while loop. the end point is handled elsewhere.
  //   while(true){
     	try{
     	if (useNewApi) {
@@ -420,7 +419,7 @@ public class ReduceTask<INKEY,INVALUE,OUTKEY,OUTVALUE> extends Task {
 	    Class valueClass = job.getMapOutputValueClass();
 	    RawComparator comparator = job.getOutputValueGroupingComparator();
 	    
-	    boolean useNewApi = true; //very bad programming!
+	    boolean useNewApi = true;
 	  try{
 	    	if (useNewApi) {
 	    		runNewReducer(job, umbilical, reporter, rIter, comparator, 
@@ -614,7 +613,7 @@ public class ReduceTask<INKEY,INVALUE,OUTKEY,OUTVALUE> extends Task {
       return bytesWritten;
     }
   }
-
+//written by Navya for single reducer system:
   private  void setupReducer(JobConf job, final TaskReporter reporter) 
 		  throws IOException,InterruptedException, ClassNotFoundException{
 	// make a task context so we can get the classes
@@ -625,7 +624,7 @@ public class ReduceTask<INKEY,INVALUE,OUTKEY,OUTVALUE> extends Task {
 	    reducer =
 	      (org.apache.hadoop.mapreduce.Reducer<INKEY,INVALUE,OUTKEY,OUTVALUE>)
 	        ReflectionUtils.newInstance(taskContext.getReducerClass(), job);
-//	    trackedRW = 
+//	    trackedRW = commented by pratik for multiple reduce tasks
 //	      new NewTrackingRecordWriter<OUTKEY, OUTVALUE>(this, taskContext);
 	    job.setBoolean("mapred.skip.on", isSkipping());
 	    job.setBoolean(JobContext.SKIP_RECORDS, isSkipping());
@@ -689,15 +688,6 @@ public class ReduceTask<INKEY,INVALUE,OUTKEY,OUTVALUE> extends Task {
       reducer.run(reducerContext);
     } finally {
       trackedRW.close(reducerContext);
-
-//      try{
-//      Path filePath = ((org.apache.hadoop.mapreduce.lib.output.FileOutputFormat) outputFormat).getDefaultWorkFile(reducerContext, "");
-//      LOG.info("Vandit. renaming: "+filePath);
-//      FileSystem fs = filePath.getFileSystem(conf);
-//      fs.rename(filePath, new Path(filePath.toString()+"_"+System.currentTimeMillis()));
-//      }catch(Exception e){
-//    	  LOG.info("error while renaming file"+e.getMessage());
-//      }
     }
   }
   

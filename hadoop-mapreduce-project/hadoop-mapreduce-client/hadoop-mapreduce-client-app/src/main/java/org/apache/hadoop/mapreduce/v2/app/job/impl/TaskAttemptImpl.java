@@ -1374,10 +1374,10 @@ public abstract class TaskAttemptImpl implements
         JobCounter.TOTAL_LAUNCHED_MAPS : JobCounter.TOTAL_LAUNCHED_REDUCES, 1);
     eventHandler.handle(jce);
 	if(attemptId.getTaskId().getTaskType() == TaskType.MAP){
-		LOG.info("vandit. Mapper. taskTrackerHttp: "+taskTrackerHttp);
+		LOG.info("Mapper. taskTrackerHttp: "+taskTrackerHttp);
     }
 	else{
-		LOG.info("vandit. Reducer. taskTrackerHttp: "+taskTrackerHttp);
+		LOG.info("Reducer. taskTrackerHttp: "+taskTrackerHttp);
     }
     // new job event for map starting.
     /*JobAddStartedMapAttemptEvent mapStartEvent = new JobAddStartedMapAttemptEvent(attemptId);
@@ -1652,7 +1652,7 @@ public abstract class TaskAttemptImpl implements
       taskAttempt.eventHandler.handle(new TaskTAttemptEvent(
           taskAttempt.attemptId, 
          TaskEventType.T_ATTEMPT_LAUNCHED));
-      LOG.info("vandit. LaunchedContainerTransition.transition"+taskAttempt.eventHandler);
+
     }
   }
    

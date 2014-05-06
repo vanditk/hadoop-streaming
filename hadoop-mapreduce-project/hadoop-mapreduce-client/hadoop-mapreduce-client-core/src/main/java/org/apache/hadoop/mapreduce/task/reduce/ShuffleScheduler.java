@@ -47,7 +47,7 @@ public interface ShuffleScheduler<K,V> {
   
   public void close() throws InterruptedException;
 
-  //added by Vandit.
+  //Vandit. Added capability to resolve Started events.
   public void resolve(TaskStartedEventContent tsec);
 
 }

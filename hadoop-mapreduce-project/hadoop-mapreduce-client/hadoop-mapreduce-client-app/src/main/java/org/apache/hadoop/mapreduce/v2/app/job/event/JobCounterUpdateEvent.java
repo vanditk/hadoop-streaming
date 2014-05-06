@@ -73,18 +73,18 @@ public static class CounterIncrementalUpdate {
       return incrValue;
     }
   }
+
+//Vandit. Make this serializable.
 	@Override
 	public void write(DataOutput out) throws IOException {
 		// TODO Auto-generated method stub
 		//UTF8 encodedString = new UTF8(taskTrackerHttp);
 		out.writeUTF(taskTrackerHttp);
-		System.out.println("Vandit. JobCouterUpdateEvent. write");
 	}
 	@Override
 	public void readFields(DataInput in) throws IOException {
 		// TODO Auto-generated method stub
 		taskTrackerHttp = in.readUTF();
-		System.out.println("Vandit. JobCouterUpdateEvent. readFields");
 	}
 
 	public TaskAttemptId getAttemptId() {
